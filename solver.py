@@ -71,7 +71,7 @@ def train(args, train_dataset, valid_dataset):
     # args.num is the length of the impulse response. We compute the transfer 
     # funciton on [0, fs/2] 
     x = get_frequency_samples(int(np.floor(args.num/2)+1))     
-    x = (1+1e-6)*x      # TODO to avoid numerical instabilities 
+    # x = (1+1e-6)*x      # TODO to avoid numerical instabilities 
     args.steps = 0
     train_loss, valid_loss = [], []
 
