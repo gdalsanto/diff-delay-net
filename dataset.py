@@ -18,7 +18,7 @@ class rirDataset(Dataset):
         print("Loading RIRs to {}".format(get_device()))
         self.data_loaded = []
         st = time()
-        for i in tqdm(range(0, 100)): #len(pathlist))):
+        for i in tqdm(range(0, len(pathlist))):
 
             rir, samplerate = sf.read(pathlist[i], dtype='float32')
             if samplerate!=args.sr:
