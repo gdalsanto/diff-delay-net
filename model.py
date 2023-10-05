@@ -63,8 +63,7 @@ class Encoder(nn.Module):
         # 2. GRUs
         x = torch.permute(x, (0, 3, 2, 1))
         T = x.size(dim=1)
-        # TODO features: time and freq axis (my own interpretation because paper 
-        # is unclear about this step
+        # TODO sequence length: time and freq axis (my own interpretation)
         x = torch.reshape(x, (-1, x.size(dim=1)*x.size(dim=2), x.size(dim=3)))
         x, hn = self.gru1(x)
         # features: freq and channel axis 
@@ -144,7 +143,7 @@ class ASPestNet(nn.Module):
         # inverse of the sigmoid function 
         bias_f = lambda x: torch.log(x/(1-x))
 
-        # TODO investigate on the weight initialization. using the default pytorch init 
+        #  investigate on the weight initialization. using the default pytorch init 
         # might shuffles the frequencies.
         self.fC1ProjLayer = ProjectionLayer(
             (78, 256), 1, 8, 
@@ -201,7 +200,7 @@ class ASPestNet(nn.Module):
         
         # normalization term 
         self.bc_norm = nn.Parameter(torch.ones(2,6))
-        self.h0_norm = torch.ones((1,1), device=get_device())
+        self.h0_norm = torch.ones((1,1), device=get_device())   # TODO save them!! 
         self.ir_norm = torch.ones((1,1), device=get_device())
 
     def forward(self, x, z):
