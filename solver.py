@@ -70,7 +70,7 @@ def train(args, train_dataset, valid_dataset):
     # frequency samples to oveluate the transfer funciton on 
     # args.num is the length of the impulse response. We compute the transfer 
     # funciton on [0, fs/2] 
-    x = get_frequency_samples(int(np.floor(args.num/2)+1))     
+    x = get_frequency_samples(args.num//2+1)     
     args.steps = 0
     train_loss, valid_loss = [], []
 
@@ -82,6 +82,15 @@ def train(args, train_dataset, valid_dataset):
         'target_ir.wav')
 
     # energy normalization of the df (no bypass)
+    with torch.no_grad():
+        input = next(iter(train_dataset))
+        # normalize energy of ir to equal 1 
+        ir ,_, _ = net(input, x)   
+        energy = torch.mean(torch.pow(torch.abs(ir),2), dim=1)
+        net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
+        # apply energy normalization on input and output gains only
+        print('Loss at init : {}'.format(criterion(net(input, x)[0], input)))
+    '''
     with torch.no_grad():
         input = next(iter(train_dataset))
         _,ir_late, h0 = net(input, x) 
@@ -102,7 +111,7 @@ def train(args, train_dataset, valid_dataset):
         net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
         # apply energy normalization on input and output gains only
         print('Loss at init : {}'.format(criterion(net(input, x)[0], input)))
-
+    '''
     for epoch in range(args.max_epochs):
         epoch_loss = 0
         grad_norm = 0
@@ -174,7 +183,7 @@ if __name__ == '__main__':
 
     dset_parser = parser.add_argument_group('dset', 'dataset sepcific args')
 
-    dset_parser.add_argument('--sr', default=44100,
+    dset_parser.add_argument('--sr', default=48000,
         help='sample rate')
     dset_parser.add_argument('--ds_path', '-p', 
         help='directly point to dataset path')

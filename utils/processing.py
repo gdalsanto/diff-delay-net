@@ -36,7 +36,7 @@ def find_onset(rir):
     return int(win_len * hop * ( np.argmax(local_energy) - \
         1 ))    # one hopsize as safety margin 
 
-def augment_direct_gain(rir, low = 10**(-12/20), high=10**(3/20), sr=44100):
+def augment_direct_gain(rir, low = 10**(-12/20), high=10**(3/20), sr=48000):
     ''' multiply first 5ms of rir with random gain sampled from uniform 
     distribution in [low, high] '''
     direct =int(0.005*sr) # take first 5 ms 

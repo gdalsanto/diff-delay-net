@@ -8,38 +8,34 @@ from utils.utility import get_device
 
 # MODEL/TASK_AGNOSTIC ENCODER 
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, sr=48000, n_fft=1024):
         super().__init__()
         ''' model/task agnostic decoder '''
 
         self.stft = features.stft.STFT(
-            n_fft = 1024,
-            hop_length = 128,
-            window = 'hann',
+            n_fft = n_fft,
+            hop_length = n_fft//8,
             freq_scale = 'log',
-            sr = 44100,
+            sr = sr,
+            fmin=10,
+            fmax=sr//2, 
             output_format = 'Magnitude',
             verbose=False
         )
         self.conv_depth = 5
+        self.chn_in = [1, 64, 128, 128, 128] 
         self.chn_out = [64, 128, 128, 128, 128]  
         self.kernel = [(7,5), (5,5), (5,5), (5,5), (5,5)]
         self.strides = [(1,2), (2,1), (2,2), (2,2), (1,1)]
 
         self.conv_list = nn.ModuleList([])
         for i in range(self.conv_depth):
-            if i == 0:
-                chn_in = 1
-            else:
-                chn_in = self.chn_out[i-1]
-            
             self.conv_list.append(nn.ModuleList(
-                [conv2d_block(chn_in, self.chn_out[i], self.kernel[i], self.strides[i])]
-            ))
+                [conv2d_block(self.chn_in[i], self.chn_out[i], self.kernel[i], self.strides[i])]))
         
-        self.gru1 = nn.GRU(input_size=128, num_layers=2, hidden_size=64, 
+        self.gru1 = nn.GRU(input_size=128, hidden_size=64, num_layers=2, 
             batch_first = True, bidirectional=True)
-        self.gru2 = nn.GRU(input_size=7168, num_layers=2, hidden_size=128,
+        self.gru2 = nn.GRU(input_size=7168, hidden_size=128, num_layers=1,
             batch_first = True, bidirectional=True)
 
         self.lin_depth = 2
@@ -47,8 +43,7 @@ class Encoder(nn.Module):
         self.lin_list = nn.ModuleList([])
         for i in range(self.lin_depth):
             self.lin_list.append(nn.ModuleList(
-                [linear_block(in_feat, out_feat)]
-            ))
+                [linear_block(in_feat, out_feat)]))
     
     def forward(self, x):
         # convert to log-freq log-mag stft 
@@ -61,14 +56,13 @@ class Encoder(nn.Module):
             x = module[0](x)
         
         # 2. GRUs
+        # TODO use einops 
         x = torch.permute(x, (0, 3, 2, 1))
-        T = x.size(dim=1)
-        # TODO sequence length: time and freq axis (my own interpretation)
-        x = torch.reshape(x, (-1, x.size(dim=1)*x.size(dim=2), x.size(dim=3)))
-        x, hn = self.gru1(x)
-        # features: freq and channel axis 
-        x = torch.reshape(x, (-1, T, 7168))
-        x, hn = self.gru2(x)
+        T, F, C = x.size(dim=1), x.size(dim=2), x.size(dim=3)
+        # freq GRU
+        x = self.gru1(torch.reshape(x, (-1, F, C)))[0]
+        # time GRU
+        x = self.gru2(torch.reshape(x, (-1, T, F*C)))[0]
 
         # 3. stack of 2 linear layaer + layernorm + relu
         for i, module in enumerate(self.lin_list):
@@ -134,58 +128,63 @@ class ASPestNet(nn.Module):
         self.encoder = Encoder()
         self.sigmoid = nn.Sigmoid()
         z1, z2 = 1, 8
-        self.sr = 44100
+        self.sr = 48000
         omega_min, omega_max = 40, 12000 
         
         k = torch.arange(1,z2+1,1)
         # initial cutoff freqs such that the freqs are equally spaced in the logarithmic scale 
-        omegaK = 2*(omega_min*(omega_max/omega_min)**((k-1)/(z2-1)))/self.sr 
+        # omegaK = 2*(omega_min*((omega_max/omega_min)**((k-1)/(z2-1))))/self.sr 
+        omegaK = 2*(omega_min*((omega_max/omega_min)**torch.linspace(0, 1, z2)))
         # inverse of the sigmoid function 
-        bias_f = lambda x: torch.log(x/(1-x))
+        bias_f = lambda x: torch.log(x/(self.sr-x))
 
-        #  investigate on the weight initialization. using the default pytorch init 
+        # TODO investigate on the weight initialization. using the default pytorch init 
         # might shuffles the frequencies.
         self.fC1ProjLayer = ProjectionLayer(
-            (78, 256), 1, 8, 
+            (109, 256), 1, 8, 
             bias = bias_f(omegaK),
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))
             # activation = lambda x: torch.tan(torch.pi * self.sigmoid(
             #   torch.tan(torch.pi * x / 44100 )) / 2))
         self.fCdeltaProjLayer = ProjectionLayer(
-            (78, 256), 1, 8, 
+            (109, 256), 1, 8, 
             bias = bias_f(omegaK),
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))           
 
         self.RC1ProjLayer = ProjectionLayer(
-            (78, 256), 1, 8,
+            (109, 256), 1, 8,
             activation = lambda x: torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device())))
         bias = torch.ones((3, 8), device=get_device())
         bias[1, :] = 2*torch.ones((1, 8), device=get_device())
         self.mC1ProjLayer = ProjectionLayer(
-            (78, 256), 3, 8,
+            (109, 256), 3, 8,
             bias = bias)
 
         self.GCdeltaProjLayer = ProjectionLayer(
-            (78, 256), 1, 8, 
+            (109, 256), 1, 8, 
             bias = -10*torch.ones((z1, z2), device=get_device()), 
-            activation = lambda x: 10**(-torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device()))))
+            # activation = lambda x: 10**(-torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device()))))
+            # SL
+            activation = lambda x: 10**(-F.softplus(x-3)))
         self.RCdeltaProjLayer = ProjectionLayer(
-            (78, 256), 1, 8,
-            activation = lambda x: torch.log(1+torch.exp(x))  / torch.log(torch.tensor(2,  device=get_device()))) 
+            (109, 256), 1, 8,
+            # activation = lambda x: torch.log(1+torch.exp(x))  / torch.log(torch.tensor(2,  device=get_device())))
+            # SL
+            activation = lambda x: 2*F.softplus(x) / F.softplus(torch.zeros(1, device=get_device())) ) 
             
 
         self.SAProjLayer = ProjectionLayer(
-            (78, 256), 6, 4, 
+            (109, 256), 6, 4, 
             activation = self.sigmoid)
         self.bcProjLayer = ProjectionLayer(
-            (78, 256), 2, 6)
+            (109, 256), 2, 6)
         self.hProjLayer = ProjectionLayer(
-            (78, 256), 1, 232)  # in the original paper it was 100 
+            (109, 256), 1, 232)  # in the original paper it was 100 
 
         # delay lengths
         self.d = torch.tensor([233, 311, 421, 461, 587, 613],  device=get_device())
         self.M = self.d.size(0)
-        self.Q0 = torch.tensor(householder(self.M), device=get_device())  # TODO: when to change Houlsehoöder matrix ? 
+        self.Q0 = torch.tensor(householder(self.M), device=get_device()) 
 
         # all pass filter delay lengths
         self.dAP = torch.tensor([
@@ -196,7 +195,7 @@ class ASPestNet(nn.Module):
             [61, 211, 257, 431], 
             [47, 229, 251, 443]],  device=get_device())   
         # length of IR  
-        self.ir_length = int(2*self.sr)
+        self.ir_length = int(2.5*self.sr)
         
         # normalization term 
         self.bc_norm = nn.Parameter(torch.ones(2,6))
@@ -225,6 +224,8 @@ class ASPestNet(nn.Module):
         fCdelta = self.fCdeltaProjLayer(x).squeeze(dim=1)
         GCdelta = self.GCdeltaProjLayer(x).squeeze(dim=1)
         RCdelta = self.RCdeltaProjLayer(x).squeeze(dim=1)
+        RCdelta[:,0] = RCdelta[:,0] + 1/torch.sqrt(torch.tensor(2, device=get_device())) 
+        RCdelta[:,-1] = RCdelta[:,-1] + 1/torch.sqrt(torch.tensor(2, device=get_device())) 
         Cdelta = PEQ(z, fCdelta, RCdelta, GCdelta)
         Cdelta = Cdelta.expand(self.M, -1, -1).permute(1, 2, 0)
         gamma = self.SAProjLayer(x)
@@ -252,7 +253,6 @@ class ASPestNet(nn.Module):
         x = self.encoder(x) # out: [bs, 109, 256]
         # get filters parameters and freuqency response as dictionary 
         parameters = {}
-        # TODO parameters are missing 
         parameters['fC1'] = self.fC1ProjLayer(x).squeeze(dim=1)
         parameters['RC1'] = self.RC1ProjLayer(x).squeeze(dim=1)
         parameters['mC1'] = self.mC1ProjLayer(x)
