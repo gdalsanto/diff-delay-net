@@ -2,6 +2,7 @@
 # comput
 import torch 
 import torch.nn as nn
+import numpy as np
 import torch.nn.functional as F
 from utils.utility import get_device
 
@@ -35,7 +36,7 @@ def SVF(x, f, R, mLP, mBP, mHP):
         H = torch.mul(H, Hi)  
     return H 
 
-def SAP(x, m, gamma):
+def SAP(x, m, gamma,  eps = 1e-10):
     ''' differentiable Schoreder allpass filter 
     x: frequency sampling points 
     m: delay lengths
@@ -43,22 +44,32 @@ def SAP(x, m, gamma):
     M = m.size(0) # number of channels
     K = m.size(1) # number of cascaded filters 
     bs = gamma.size(0) # batch size
+    num = (x.size(0) - 1) * 2 # TODO to be fixed
     # compute transfer function of first filter
-    zK = torch.pow(x.expand(M,-1).permute(1, 0),-m[:,0]).expand(bs, -1, -1)     # this step instroudces some numerical errors so that the absolute value is no longer <= 1
+    # zK = torch.pow(x.expand(M,-1).permute(1, 0),-m[:,0]).expand(bs, -1, -1)
+    zK = get_delays(num, m[:,0].reshape(M, 1))
     gammaK = (gamma[:,:,0].expand(x.size(0), -1, -1)).permute(1, 0, 2)
     H = torch.div(
         (gammaK + zK), 
-        (1 + gammaK * zK))
+        (1 + gammaK * zK) + eps)
     # compute all the other SAP filters in series 
     for k in range(1, K):
-        zK = torch.pow(x.expand(M,-1).permute(1, 0),-m[:,k]).expand(bs, -1, -1)
+        # zK = torch.pow(x.expand(M,-1).permute(1, 0),-m[:,k]).expand(bs, -1, -1)
+        zK = get_delays(num, m[:,k].reshape(M, 1))
         gammaK = (gamma[:,:,k].expand(x.size(0), -1, -1)).permute(1, 0, 2)
         Hi = torch.div(
             (gammaK + zK),
-            (1 + gammaK * zK))
+            (1 + gammaK * zK) + eps)
         # element-wise mul to compute overall system's transfer function
         H = torch.mul(H, Hi)    
     return H 
+
+def get_delays(num, m):
+
+    idxs = torch.arange(num // 2 + 1).unsqueeze(-2)
+    phase = m.unsqueeze(-1) * idxs / num * 2 * np.pi
+    delay = torch.view_as_complex(torch.stack([torch.cos(phase), -torch.sin(phase)], -1))
+    return delay.permute(1, 2, 0)
 
 def PEQ(x, f, R, G):
     ''' differentiable parameteric equilizer
