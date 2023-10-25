@@ -141,45 +141,45 @@ class ASPestNet(nn.Module):
         # TODO investigate on the weight initialization. using the default pytorch init 
         # might shuffles the frequencies.
         self.fC1ProjLayer = ProjectionLayer(
-            (109, 256), 1, 8, 
+            (76, 256), 1, 8, 
             bias = bias_f(omegaK),
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))
             # activation = lambda x: torch.tan(torch.pi * self.sigmoid(
             #   torch.tan(torch.pi * x / 44100 )) / 2))
         self.fCdeltaProjLayer = ProjectionLayer(
-            (109, 256), 1, 8, 
+            (76, 256), 1, 8, 
             bias = bias_f(omegaK),
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))           
 
         self.RC1ProjLayer = ProjectionLayer(
-            (109, 256), 1, 8,
+            (76, 256), 1, 8,
             activation = lambda x: torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device())))
         bias = torch.ones((3, 8), device=get_device())
         bias[1, :] = 2*torch.ones((1, 8), device=get_device())
         self.mC1ProjLayer = ProjectionLayer(
-            (109, 256), 3, 8,
+            (76, 256), 3, 8,
             bias = bias)
 
         self.GCdeltaProjLayer = ProjectionLayer(
-            (109, 256), 1, 8, 
+            (76, 256), 1, 8, 
             bias = -10*torch.ones((z1, z2), device=get_device()), 
             # activation = lambda x: 10**(-torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device()))))
             # SL
             activation = lambda x: 10**(-F.softplus(x-3)))
         self.RCdeltaProjLayer = ProjectionLayer(
-            (109, 256), 1, 8,
+            (76, 256), 1, 8,
             # activation = lambda x: torch.log(1+torch.exp(x))  / torch.log(torch.tensor(2,  device=get_device())))
             # SL
             activation = lambda x: 2*F.softplus(x) / F.softplus(torch.zeros(1, device=get_device())) ) 
             
 
         self.SAProjLayer = ProjectionLayer(
-            (109, 256), 6, 4, 
+            (76, 256), 6, 4, 
             activation = self.sigmoid)
         self.bcProjLayer = ProjectionLayer(
-            (109, 256), 2, 6)
+            (76, 256), 2, 6)
         self.hProjLayer = ProjectionLayer(
-            (109, 256), 1, 232)  # in the original paper it was 100 
+            (76, 256), 1, 232)  # in the original paper it was 100 
 
         # delay lengths
         self.d = torch.tensor([233, 311, 421, 461, 587, 613],  device=get_device())
