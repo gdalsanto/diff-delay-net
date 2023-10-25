@@ -195,7 +195,7 @@ class ASPestNet(nn.Module):
             [61, 211, 257, 431], 
             [47, 229, 251, 443]],  device=get_device())   
         # length of IR  
-        self.ir_length = int(2.5*self.sr)
+        self.ir_length = int(1.8*self.sr)
         
         # normalization term 
         self.bc_norm = nn.Parameter(torch.ones(2,6))
