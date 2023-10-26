@@ -102,18 +102,18 @@ class ProjectionLayer(nn.Module):
         self.linear2 = nn.Linear(in_feats[1], z2)
         # initialize bias 
         if bias is not None:
-            self.linear2.bias.data.fill_(0)
             self.linear2.bias = nn.Parameter(bias)
-        else:
-            self.linear1.bias.data.fill_(0)
-            self.linear2.bias.data.fill_(0)
+
+            # self.linear1.bias.data.fill_(0)
+        # in SL it seems that the bias is uneffected
+        # else:
+        #    self.linear1.bias.data.fill_(0)
+        #    self.linear2.bias.data.fill_(0)
         self.activation = activation
 
     def forward(self, x):
-        x = torch.transpose(x, 2, 1)
-        x = self.linear1(x)
-        x = torch.transpose(x, 2, 1)
-        y = self.linear2(x)
+        x = self.linear1(torch.transpose(x, 2, 1))
+        y = self.linear2(torch.transpose(x, 2, 1))
         # nonlinear activation
         if self.activation is not None:
             y = self.activation(y)
@@ -146,6 +146,7 @@ class ASPestNet(nn.Module):
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))
             # activation = lambda x: torch.tan(torch.pi * self.sigmoid(
             #   torch.tan(torch.pi * x / 44100 )) / 2))
+
         self.fCdeltaProjLayer = ProjectionLayer(
             (76, 256), 1, 8, 
             bias = bias_f(omegaK),
@@ -153,7 +154,10 @@ class ASPestNet(nn.Module):
 
         self.RC1ProjLayer = ProjectionLayer(
             (76, 256), 1, 8,
-            activation = lambda x: torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device())))
+            # activation = lambda x: torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device())))
+            # SL
+            activation = lambda x: F.softplus(x) / F.softplus(torch.zeros(1, device=get_device())) ) 
+
         bias = torch.ones((3, 8), device=get_device())
         bias[1, :] = 2*torch.ones((1, 8), device=get_device())
         self.mC1ProjLayer = ProjectionLayer(
@@ -162,15 +166,16 @@ class ASPestNet(nn.Module):
 
         self.GCdeltaProjLayer = ProjectionLayer(
             (76, 256), 1, 8, 
-            bias = -10*torch.ones((z1, z2), device=get_device()), 
+            # bias = -10*torch.ones((z1, z2), device=get_device()), 
             # activation = lambda x: 10**(-torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device()))))
             # SL
+            bias = 2*torch.ones((z1, z2), device=get_device()), 
             activation = lambda x: 10**(-F.softplus(x-3)))
         self.RCdeltaProjLayer = ProjectionLayer(
             (76, 256), 1, 8,
             # activation = lambda x: torch.log(1+torch.exp(x))  / torch.log(torch.tensor(2,  device=get_device())))
             # SL
-            activation = lambda x: 2*F.softplus(x) / F.softplus(torch.zeros(1, device=get_device())) ) 
+            activation = lambda x: F.softplus(x) / F.softplus(torch.zeros(1, device=get_device())) ) 
             
 
         self.SAProjLayer = ProjectionLayer(
@@ -217,8 +222,8 @@ class ASPestNet(nn.Module):
         h0 = self.hProjLayer(x).squeeze(dim=1)
         # common post filter
         fC1 = self.fC1ProjLayer(x).squeeze(dim=1)
-        RC1 = self.RC1ProjLayer(x).squeeze(dim=1)
-        mC1 = self.mC1ProjLayer(x)
+        RC1 = self.RC1ProjLayer(x/np.sqrt(8)).squeeze(dim=1)
+        mC1 = self.mC1ProjLayer(x/np.sqrt(8))
         C1 = SVF(z, fC1, RC1, mC1[:, 0, :], mC1[:, 1, :], mC1[:, 2, :])
         # common parallel delta-coloration filters 
         fCdelta = self.fCdeltaProjLayer(x).squeeze(dim=1)

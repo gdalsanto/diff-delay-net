@@ -80,20 +80,17 @@ def PEQ(x, f, R, G):
     f entries at initialization must be in ascending order '''
     K = f.size(1)   # number of filters in series
     bs = f.size(0)   # number of channels
-    # TODO: it seems that low values of R give better looking respononses (low: close to 1/sqrt(2))
-    # maybe the activation should not push R to high values 
+
     # Watch out that for Cdelta the gain is <0db so the filters are "fipped vertically"
     betaLP, alphaLP = compute_biquad_coeff(
-        f[:,0], R[:,0], torch.tensor(1, device=get_device()), 2 * R[:,0] * torch.sqrt(G[:,0]), G[:,0] )
-        # f[:,0], R[:,0], G[:,0], 2 * R[:,0] * torch.sqrt(G[:,0]), torch.tensor(1, device=get_device()) )
+        # f[:,0], R[:,0], torch.tensor(1, device=get_device()), 2 * R[:,0] * torch.sqrt(G[:,0]), G[:,0] )
+        f[:,0], R[:,0], G[:,0], 2 * R[:,0] * torch.sqrt(G[:,0]), torch.tensor(1, device=get_device()) )
     HHP = biquad_to_tf(x, betaLP[:,:,0], alphaLP[:,:,0]) 
     H = HHP 
-
-    # high shelf filter (as flipped low shelf)
     
     betaHP, alphaHP = compute_biquad_coeff(
-        f[:,-1], R[:,-1], G[:,-1], 2 * R[:,-1] * torch.sqrt(G[:,-1]), torch.tensor(1, device=get_device()) )
-        # f[:,-1], R[:,-1], torch.tensor(1, device=get_device()), 2 * R[:,-1] * torch.sqrt(G[:,-1]), G[:,-1] )  
+        # f[:,-1], R[:,-1], G[:,-1], 2 * R[:,-1] * torch.sqrt(G[:,-1]), torch.tensor(1, device=get_device()) )
+        f[:,-1], R[:,-1], torch.tensor(1, device=get_device()), 2 * R[:,-1] * torch.sqrt(G[:,-1]), G[:,-1] )  
     HLP = biquad_to_tf(x, betaHP[:,:,0], alphaHP[:,:,0]) 
     H = H*HLP
 
