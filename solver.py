@@ -82,6 +82,7 @@ def train(args, train_dataset, valid_dataset):
         'target_ir.wav')
 
     # energy normalization of the df (no bypass)
+    '''
     with torch.no_grad():
         input = next(iter(train_dataset))
         # normalize energy of ir to equal 1 
@@ -90,6 +91,7 @@ def train(args, train_dataset, valid_dataset):
         net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
         # apply energy normalization on input and output gains only
         print('Loss at init : {}'.format(criterion(net(input, x)[0], input)))
+    '''
     '''
     with torch.no_grad():
         input = next(iter(train_dataset))

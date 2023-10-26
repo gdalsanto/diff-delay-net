@@ -66,7 +66,7 @@ def SAP(x, m, gamma,  eps = 1e-10):
 
 def get_delays(num, m):
 
-    idxs = torch.arange(num // 2 + 1).unsqueeze(-2)
+    idxs = torch.arange(num // 2 + 1, device=get_device()).unsqueeze(-2)
     phase = m.unsqueeze(-1) * idxs / num * 2 * np.pi
     delay = torch.view_as_complex(torch.stack([torch.cos(phase), -torch.sin(phase)], -1))
     return delay.permute(1, 2, 0)
