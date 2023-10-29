@@ -40,7 +40,7 @@ class MSSpectralLoss(nn.Module):
 if __name__ == "__main__":
     import soundfile as sf 
     ir_true, _ = sf.read("/Users/dalsag1/Dropbox (Aalto)/aalto/projects/diff-delay-net/shungo-dar/dar-main/as_2_rir.wav")
-    ir_pred, _ = sf.read("/Users/dalsag1/Dropbox (Aalto)/aalto/projects/diff-delay-net/shungo-dar/dar-main/as_2_freq_sampled_estimation.wav")
+    ir_pred, _ = sf.read("/Users/dalsag1/Dropbox (Aalto)/aalto/projects/diff-delay-net/inference/as_2_rir_estimated.wav")
     ir_true, ir_pred = map(lambda x: torch.tensor(x[:12000], dtype=torch.float).view(1, -1), (ir_true, ir_pred))
     mss_loss = MSSpectralLoss()
     loss = mss_loss(ir_pred, ir_true)
