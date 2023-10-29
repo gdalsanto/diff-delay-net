@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from nnAudio import features
 from utils.utility import get_device
+from utils.processing import normalize_energy_torch
 
 class MSSpectralLoss(nn.Module):
     '''multi scale spectral loss'''
@@ -42,6 +43,8 @@ if __name__ == "__main__":
     ir_true, _ = sf.read("/Users/dalsag1/Dropbox (Aalto)/aalto/projects/diff-delay-net/shungo-dar/dar-main/as_2_rir.wav")
     ir_pred, _ = sf.read("/Users/dalsag1/Dropbox (Aalto)/aalto/projects/diff-delay-net/inference/as_2_rir_estimated.wav")
     ir_true, ir_pred = map(lambda x: torch.tensor(x[:12000], dtype=torch.float).view(1, -1), (ir_true, ir_pred))
+    ir_true = normalize_energy_torch(ir_true)
+    ir_pred = normalize_energy_torch(ir_pred)
     mss_loss = MSSpectralLoss()
     loss = mss_loss(ir_pred, ir_true)
     print(loss)

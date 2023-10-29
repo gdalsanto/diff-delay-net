@@ -7,6 +7,11 @@ def normalize_energy(x):
     ''' normalize energy of x to 1 '''
     energy = np.mean(np.power(np.abs(x),2))
     return np.divide(x , np.power(energy, 1/2))
+    
+def normalize_energy_torch(x):
+    ''' normalize energy of x to 1 '''
+    energy = torch.mean(torch.pow(torch.abs(x),2))
+    return torch.divide(x , torch.pow(energy, 1/2))
 
 def find_onset(rir):
     ''' find onset in input RIR by extracting a local energy envelope of the 

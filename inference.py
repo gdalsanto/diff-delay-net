@@ -42,7 +42,10 @@ def inference(args):
     input = torch.unsqueeze(torch.tensor(rir).to(get_device()), 0)
 
     rir_estimated, _, _ = net(input, x)
-
+    # compute loss
+    mss_loss = MSSpectralLoss()
+    loss = mss_loss(rir_estimated, input)
+    print(loss)
     # save results 
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir)
