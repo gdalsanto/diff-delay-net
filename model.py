@@ -242,6 +242,9 @@ class ASPestNet(nn.Module):
         # unitary matrix - Householder
 
         Q0 = self.Q0
+        if self.training == False:
+            # apply tiny rotational matrix 
+            Q0 = torch.matmul(Q0, self.scatter(bs))
         # Gamma = torch.diag(0.9999**self.d)
         # TODO find why U creates resonances and balance energy of the ealry reflections
         # H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D -  torch.diag_embed(Cdelta)*torch.matmul(Q0,Gamma)))
@@ -253,6 +256,14 @@ class ASPestNet(nn.Module):
         h0 = self.h0_norm.expand(bs, 1)*F.pad(h0, (0, self.ir_length-h0.size(dim=1)))
         ir = self.ir_norm.expand(bs, 1)*(h0 + ir_late[:,:self.ir_length])
         return ir, ir_late, h0
+
+    def scatter(self, bs):
+        "Tiny rotational matrix"
+        adm = torch.Tensor(np.ones((bs, self.M)))
+        const = 2 / torch.sum(adm ** 2, -1, keepdim = True).unsqueeze(-1)
+        scat = const * torch.matmul(adm.unsqueeze(-1), adm.unsqueeze(-2))
+        scat = scat - nn.Parameter(torch.eye(self.M))
+        return scat
     
     def get_filters(self, x, z):
         x = self.encoder(x) # out: [bs, 109, 256]
@@ -292,3 +303,4 @@ class ASPestNet(nn.Module):
             except:
                 continue
         return parameters, filters_tf
+

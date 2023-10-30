@@ -40,7 +40,7 @@ def save_checkpoint(args, net, optimizer, scheduler, epoch):
     torch.save(state_dicts, os.path.join(args.checkpoint_path, filename))
     return args
     
-def restore_checkpoint(args, net, optimizer, scheduler, epoch = None, pattern = r'\d{4}'):
+def restore_checkpoint(args, net, optimizer = None, scheduler = None, epoch = None, pattern = r'\d{4}'):
     ''' restore model from checkpoint of the network
     Args:    
         net     model to load the checkpoint onto
@@ -72,6 +72,10 @@ def restore_checkpoint(args, net, optimizer, scheduler, epoch = None, pattern = 
     scheduler_state_dict = checkpoint['scheduler']
 
     # load the state dictionaries into your PyTorch model, optimizer, and scheduler
+    if net.training == False:
+        net.load_state_dict(net_state_dict)
+        return args, net.eval(), epoch
+
     net.load_state_dict(net_state_dict)
     optimizer.load_state_dict(optimizer_state_dict)
     scheduler.load_state_dict(scheduler_state_dict)

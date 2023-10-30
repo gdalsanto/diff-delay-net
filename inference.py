@@ -17,6 +17,7 @@ def inference(args):
         device = 'cpu'
     
     net = ASPestNet()
+    net.eval()
     args.device = get_device()
     net = net.to(args.device)
 
