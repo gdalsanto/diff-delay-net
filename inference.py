@@ -27,24 +27,27 @@ def inference(args):
     x = get_frequency_samples(int(np.floor(args.num/2+1)))
 
     # load input rir
-    rir, samplerate = sf.read(args.filepath, dtype='float32')
-    if samplerate!=args.sr:
-        raise ValueError('Wrong samplerate: detected {} - required {}'.format(samplerate, args.sr))
-    
     rir_len_samples = int(args.rir_length*args.sr)
-    if rir.shape[0] > rir_len_samples:
-        rir = rir[:rir_len_samples]
-    elif rir.shape[0] < rir_len_samples:
-        rir = np.pad(rir, 
-        ((0, rir_len_samples - rir.shape[0])),
-        mode = 'constant')
-    rir = normalize_energy(rir)
-    input = torch.unsqueeze(torch.tensor(rir).to(get_device()), 0)
+
+    if args.rand_input: 
+        input = torch.rand(4, rir_len_samples).to(get_device())
+    else:
+        rir, samplerate = sf.read(args.filepath, dtype='float32')
+        if samplerate!=args.sr:
+            raise ValueError('Wrong samplerate: detected {} - required {}'.format(samplerate, args.sr))
+        
+        if rir.shape[0] > rir_len_samples:
+            rir = rir[:rir_len_samples]
+        elif rir.shape[0] < rir_len_samples:
+            rir = np.pad(rir, 
+            ((0, rir_len_samples - rir.shape[0])),
+            mode = 'constant')
+        input = torch.unsqueeze(torch.tensor(normalize_energy(rir)).to(get_device()), 0)
 
     rir_estimated, _, _ = net(input, x)
     # compute loss
     mss_loss = MSSpectralLoss()
-    loss = mss_loss(rir_estimated, input)
+    loss = mss_loss(rir_estimated, torch.tensor(rir))
     print(loss)
     # save results 
     if not os.path.exists(args.out_dir):
@@ -83,7 +86,8 @@ if __name__ == '__main__':
         help='rir length in seconds')
     parser.add_argument('--save_filters', action='store_true',
         help='If true, save the coefficents of the filters')
-
+    parser.add_argument('--rand_input', action='store_true', 
+        help='If true, use tensor of random values as input')
     args = parser.parse_args()
     
     inference(args)
