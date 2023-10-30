@@ -43,13 +43,6 @@ def train(args, train_dataset, valid_dataset):
     net = ASPestNet()
     args.device = get_device()
     net = net.to(args.device )
-    
-    # check if checkpoint is available
-    # arg.out_path will be updated
-    args, net, _ = restore_checkpoint(args, net)
-    # save arguments 
-    with open(os.path.join(args.out_path, 'args.txt'), 'w') as f:
-        f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
 
     # ----------- TRAINING CONFIGURATIONS ----------- # 
     # optimizer 
@@ -67,11 +60,18 @@ def train(args, train_dataset, valid_dataset):
         patience=50000, 
         min_delta=1e-4)
 
+    # check if checkpoint is available
+    # arg.out_path will be updated
+    args, net, optimizer, scheduler, init_epoch = restore_checkpoint(args, net, optimizer, scheduler)
+    # save arguments 
+    with open(os.path.join(args.out_path, 'args.txt'), 'w') as f:
+        f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
+        
     # frequency samples to oveluate the transfer funciton on 
     # args.num is the length of the impulse response. We compute the transfer 
     # funciton on [0, fs/2] 
     x = get_frequency_samples(args.num//2+1)     
-    args.steps = 0
+    args.steps = init_epoch * len(train_dataset)
     train_loss, valid_loss = [], []
 
     # sample one test example from validation set
@@ -81,7 +81,7 @@ def train(args, train_dataset, valid_dataset):
         os.path.join(args.out_path, 'audio_output'),
         'target_ir.wav')
 
-    for epoch in range(args.max_epochs):
+    for epoch in range(init_epoch, args.max_epochs):
         epoch_loss = 0
         grad_norm = 0
         st = time.time()
@@ -128,10 +128,8 @@ def train(args, train_dataset, valid_dataset):
             time=et-st,
             lr = scheduler.get_last_lr()[0])
         print(to_print)
-
-        # LOGGING every 10 epochs 
-        # if (epoch % 10) == 0:
-        save_checkpoint(args, net, epoch)
+        
+        save_checkpoint(args, net, optimizer, scheduler, epoch)
 
         test_ir_out, _, _ = net(test_batch, x)
         write_audio(
