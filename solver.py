@@ -48,7 +48,7 @@ def train(args, train_dataset, valid_dataset):
     # optimizer 
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
     # loss
-    criterion = MSSpectralLoss()
+    criterion = MSSpectralLoss(norm_peak=args.norm_peak)
     # learning rate scheduler 
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, 
@@ -189,10 +189,9 @@ if __name__ == '__main__':
         help='if true restore checkpoint')
     train_parser.add_argument('--checkpoint_path',
         help='path to checkpoints directory')
-    train_parser.add_argument('--norm_h0', action='store_true',
-        help='If true, match the energy of h0 to that of the remaining ir')
+    train_parser.add_argument('--norm_peak', action='store_true',
+        help='If true, match the peak amplitude of predition and target')
     args = parser.parse_args()
-
 
     train_dataset, valid_dataset = load_dataset(args)
     
