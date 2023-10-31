@@ -106,6 +106,11 @@ def train(args, train_dataset, valid_dataset):
             args.steps += 1
         
         train_loss.append(epoch_loss/len(train_dataset))
+        if np.isnan(train_loss[-1]):
+            print('Bad values: initialize a new model')
+            net = ASPestNet().to(args.device)
+            # TODO reset epoch in for loop
+            continue
 
         # --------- VALIDATION
         epoch_loss = 0
