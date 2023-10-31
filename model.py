@@ -130,7 +130,7 @@ class ASPestNet(nn.Module):
         z1, z2 = 1, 8
         self.sr = 48000
         omega_min, omega_max = 40, 12000 
-        
+        M = 6   # number of channels
         k = torch.arange(1,z2+1,1)
         # initial cutoff freqs such that the freqs are equally spaced in the logarithmic scale 
         # omegaK = 2*(omega_min*((omega_max/omega_min)**((k-1)/(z2-1))))/self.sr 
@@ -148,7 +148,7 @@ class ASPestNet(nn.Module):
             #   torch.tan(torch.pi * x / 44100 )) / 2))
 
         self.fCdeltaProjLayer = ProjectionLayer(
-            (76, 256), 1, 8, 
+            (76, 256), M, 8, 
             bias = bias_f(omegaK),
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))           
 
@@ -165,14 +165,14 @@ class ASPestNet(nn.Module):
             bias = bias)
 
         self.GCdeltaProjLayer = ProjectionLayer(
-            (76, 256), 1, 8, 
+            (76, 256), M, 8, 
             # bias = -10*torch.ones((z1, z2), device=get_device()), 
             # activation = lambda x: 10**(-torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device()))))
             # SL
             bias = 2*torch.ones((z1, z2), device=get_device()), 
             activation = lambda x: 10**(-F.softplus(x-3)))
         self.RCdeltaProjLayer = ProjectionLayer(
-            (76, 256), 1, 8,
+            (76, 256), M, 8,
             # activation = lambda x: torch.log(1+torch.exp(x))  / torch.log(torch.tensor(2,  device=get_device())))
             # SL
             activation = lambda x: F.softplus(x) / F.softplus(torch.zeros(1, device=get_device())) ) 
@@ -232,7 +232,8 @@ class ASPestNet(nn.Module):
         RCdelta[:,0] = RCdelta[:,0] + 1/torch.sqrt(torch.tensor(2, device=get_device())) 
         RCdelta[:,-1] = RCdelta[:,-1] + 1/torch.sqrt(torch.tensor(2, device=get_device())) 
         Cdelta = PEQ(z, fCdelta, RCdelta, GCdelta)
-        Cdelta = Cdelta.expand(self.M, -1, -1).permute(1, 2, 0)
+        # Cdelta = Cdelta.expand(self.M, -1, -1).permute(1, 2, 0)
+        Cdelta = Cdelta.permute(1, 2, 0)
         gamma = self.SAProjLayer(x)
         U = SAP(z, self.dAP, gamma)
         # channel-wise allpass filters

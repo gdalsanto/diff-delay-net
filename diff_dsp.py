@@ -78,43 +78,58 @@ def PEQ(x, f, R, G):
     R: resonance 
     G: component gain
     f entries at initialization must be in ascending order '''
-    K = f.size(1)   # number of filters in series
+    K = f.size(-1)   # number of filters in series
     bs = f.size(0)   # number of channels
-
+    if len(f.shape) == 2:
+        f, R, G = f.unsqueeze(1), R.unsqueeze(1), G.unsqueeze(1)
     # Watch out that for Cdelta the gain is <0db so the filters are "fipped vertically"
     betaLP, alphaLP = compute_biquad_coeff(
         # f[:,0], R[:,0], torch.tensor(1, device=get_device()), 2 * R[:,0] * torch.sqrt(G[:,0]), G[:,0] )
-        f[:,0], R[:,0], G[:,0], 2 * R[:,0] * torch.sqrt(G[:,0]), torch.tensor(1, device=get_device()) )
-    HHP = biquad_to_tf(x, betaLP[:,:,0], alphaLP[:,:,0]) 
+        f[:,:,0], R[:,:,0], G[:,:,0], 2 * R[:,:,0] * torch.sqrt(G[:,:,0]), torch.tensor(1, device=get_device()) )
+    HHP = biquad_to_tf_mc(x, betaLP, alphaLP) 
     H = HHP 
     
     betaHP, alphaHP = compute_biquad_coeff(
         # f[:,-1], R[:,-1], G[:,-1], 2 * R[:,-1] * torch.sqrt(G[:,-1]), torch.tensor(1, device=get_device()) )
-        f[:,-1], R[:,-1], torch.tensor(1, device=get_device()), 2 * R[:,-1] * torch.sqrt(G[:,-1]), G[:,-1] )  
-    HLP = biquad_to_tf(x, betaHP[:,:,0], alphaHP[:,:,0]) 
+        f[:,:,-1], R[:,:,-1], torch.tensor(1, device=get_device()), 2 * R[:,:,-1] * torch.sqrt(G[:,:,-1]), G[:,:,-1] )  
+    HLP = biquad_to_tf_mc(x, betaHP, alphaHP) 
     H = H*HLP
 
     # K - 2 peaking filter 
     for k in range(1, K-1):
         beta, alpha = compute_biquad_coeff(
-            f[:,k], R[:,k], torch.tensor(1, device=get_device()), 2*R[:,k]*G[:,k], torch.tensor(1, device=get_device()))
-        Hp = biquad_to_tf(x, beta[:,:,0], alpha[:,:,0])
+            f[:,:,k], R[:,:,k], torch.tensor(1, device=get_device()), 2*R[:,:,k]*G[:,:,k], torch.tensor(1, device=get_device()))
+        Hp = biquad_to_tf_mc(x, beta, alpha)
         H = H*Hp
     return H
 
+def biquad_to_tf_mc(x, beta, alpha):
+    # TODO: too many transpose operations. they can be removed
+    H = torch.div(
+            torch.matmul(
+                torch.pow(x.expand((beta.shape[-1],3,-1)).permute(0, 2, 1), 
+                    torch.tensor([0, -1, -2], device=get_device())),
+                beta.permute(2, 1, 0)),
+            torch.matmul(
+                torch.pow(x.expand((beta.shape[-1],3,-1)).permute(0, 2, 1), 
+                    torch.tensor([0, -1, -2], device=get_device())),
+                alpha.permute(2, 1, 0))
+        )
+    return H.permute(0, 2, 1) 
+
 def biquad_to_tf(x, beta, alpha):
     # TODO: too many transpose operations. they can be removed
-        H = torch.div(
-                torch.matmul(
-                    torch.pow(x.expand((3 ,-1)).transpose(1, 0), 
-                        torch.tensor([0, -1, -2], device=get_device())),
-                    beta.transpose(1,0)),
-                torch.matmul(
-                    torch.pow(x.expand((3 ,-1)).transpose(1, 0), 
-                        torch.tensor([0, -1, -2], device=get_device())),
-                    alpha.transpose(1,0))
-            )
-        return H.transpose(1, 0) 
+    H = torch.div(
+            torch.matmul(
+                torch.pow(x.expand((3 ,-1)).transpose(1, 0), 
+                    torch.tensor([0, -1, -2], device=get_device())),
+                beta.transpose(1,0)),
+            torch.matmul(
+                torch.pow(x.expand((3 ,-1)).transpose(1, 0), 
+                    torch.tensor([0, -1, -2], device=get_device())),
+                alpha.transpose(1,0))
+        )
+    return H.transpose(1, 0) 
 
 def compute_biquad_coeff(f, R, mLP, mBP, mHP): #ok
     if f.dim() == 1:
