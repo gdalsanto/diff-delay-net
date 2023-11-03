@@ -11,7 +11,6 @@ from model import *
 from diff_dsp import *
 
 from losses import *
-import torch.autograd.profiler
 
 def load_dataset(args):
     # get training and valitation dataset
@@ -69,74 +68,70 @@ def train(args, train_dataset, valid_dataset):
                 'target_ir.wav')
 
     # activate profiler
-    with torch.autograd.profiler.profile() as prof:
-        for epoch in range(init_epoch, args.max_epochs):
-            epoch_loss, grad_norm = 0, 0
+    for epoch in range(init_epoch, args.max_epochs):
+        epoch_loss, grad_norm = 0, 0
 
-            st = time.time()
-            # -------- TRAINING
-            for i, data in enumerate(tqdm(train_dataset)):
-                input = data
-                target = input.clone()
-                estimate, _, _ = net(input, x)  # get estimate
-                
-                loss = criterion(estimate, target)  # compute loss
-                epoch_loss += loss.item()
-                optimizer.zero_grad()
-                loss.backward()
-                
-                grad_norm += nn.utils.clip_grad_norm_(net.parameters(), args.clip_max_norm)
-                
-                optimizer.step()    # update the wieghts
-                # update scheduler
-                if args.steps >= args.scheduler_steps:
-                    scheduler.step()
-
-                args.steps += 1
+        st = time.time()
+        # -------- TRAINING
+        for i, data in enumerate(tqdm(train_dataset)):
+            input = data
+            target = input.clone()
+            estimate, _, _ = net(input, x)  # get estimate
             
-            train_loss.append(epoch_loss/len(train_dataset))
-            if np.isnan(train_loss[-1]):
-                print('Bad values: initialize a new model')
-                net = ASPestNet().to(args.device)
-                # TODO reset epoch in for loop
-                continue
-
-            # --------- VALIDATION
-            epoch_loss = 0
-            for i, data in enumerate(tqdm(valid_dataset)):
-                input = data
-                target = input.clone()
-                estimate, _, _ = net(input, x)  # get estimate
-                loss = criterion(estimate, target)  # compute loss
-                epoch_loss += loss.item()  
-
-            valid_loss.append(epoch_loss/len(valid_dataset))          
+            loss = criterion(estimate, target)  # compute loss
+            epoch_loss += loss.item()
+            optimizer.zero_grad()
+            loss.backward()
             
-            et = time.time()
-            to_print = get_str_results( epoch=epoch, 
-                                        train_loss=train_loss, 
-                                        valid_loss=valid_loss, 
-                                        time=et-st,
-                                        lr = scheduler.get_last_lr()[0])
-            print(to_print)
+            grad_norm += nn.utils.clip_grad_norm_(net.parameters(), args.clip_max_norm)
             
-            # --------- LOGGING
-            save_checkpoint(args, net, optimizer, scheduler, epoch)
+            optimizer.step()    # update the wieghts
+            # update scheduler
+            if args.steps >= args.scheduler_steps:
+                scheduler.step()
 
-            test_ir_out, _, _ = net(test_batch, x)
-            write_audio(test_ir_out[0,:].detach(), 
-                        os.path.join(args.out_path, 'audio_output'),
-                        'e{:04d}-output-ir-loss{:.3f}.wav'.format(epoch, criterion(test_ir_out[0,:], test_batch[0,:])))
-            
-            with open(os.path.join(args.out_path, 'log.txt'), "a") as file:
-                file.write("epoch: {:04d} train loss: {:6.4f} valid loss: {:6.4f}\n".format(
-                    epoch, train_loss[-1], valid_loss[-1]))
-            
-            if early_stop.early_stop(valid_loss[-1]):
-                return
+            args.steps += 1
+        
+        train_loss.append(epoch_loss/len(train_dataset))
+        if np.isnan(train_loss[-1]):
+            print('Bad values: initialize a new model')
+            net = ASPestNet().to(args.device)
+            # TODO reset epoch in for loop
+            continue
 
-        prof.export_chrome_trace("profiler_results.json")
-        print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=5))
+        # --------- VALIDATION
+        epoch_loss = 0
+        for i, data in enumerate(tqdm(valid_dataset)):
+            input = data
+            target = input.clone()
+            estimate, _, _ = net(input, x)  # get estimate
+            loss = criterion(estimate, target)  # compute loss
+            epoch_loss += loss.item()  
+
+        valid_loss.append(epoch_loss/len(valid_dataset))          
+        
+        et = time.time()
+        to_print = get_str_results( epoch=epoch, 
+                                    train_loss=train_loss, 
+                                    valid_loss=valid_loss, 
+                                    time=et-st,
+                                    lr = scheduler.get_last_lr()[0])
+        print(to_print)
+        
+        # --------- LOGGING
+        save_checkpoint(args, net, optimizer, scheduler, epoch)
+
+        test_ir_out, _, _ = net(test_batch, x)
+        write_audio(test_ir_out[0,:].detach(), 
+                    os.path.join(args.out_path, 'audio_output'),
+                    'e{:04d}-output-ir-loss{:.3f}.wav'.format(epoch, criterion(test_ir_out[0,:], test_batch[0,:])))
+        
+        with open(os.path.join(args.out_path, 'log.txt'), "a") as file:
+            file.write("epoch: {:04d} train loss: {:6.4f} valid loss: {:6.4f}\n".format(
+                epoch, train_loss[-1], valid_loss[-1]))
+        
+        if early_stop.early_stop(valid_loss[-1]):
+            return
 
 if __name__ == '__main__':
     
