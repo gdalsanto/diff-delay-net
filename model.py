@@ -242,11 +242,7 @@ class ASPestNet(nn.Module):
         # unitary matrix - Householder
 
         Q0 = self.Q0
-        if self.training == False:
-            # apply tiny rotational matrix 
-            Q0 = torch.matmul(Q0, self.scatter(bs))
         # Gamma = torch.diag(0.9999**self.d)
-        # TODO find why U creates resonances and balance energy of the ealry reflections
         # H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D -  torch.diag_embed(Cdelta)*torch.matmul(Q0,Gamma)))
         H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D - torch.diag_embed(U*Cdelta)*Q0 + 1e-16))
         
@@ -258,12 +254,17 @@ class ASPestNet(nn.Module):
         return ir, ir_late, h0
 
     def scatter(self, bs):
-        "Tiny rotational matrix"
+        "scattering matrix"
         adm = torch.Tensor(np.ones((bs, self.M)))
         const = 2 / torch.sum(adm ** 2, -1, keepdim = True).unsqueeze(-1)
         scat = const * torch.matmul(adm.unsqueeze(-1), adm.unsqueeze(-2))
         scat = scat - nn.Parameter(torch.eye(self.M))
         return scat
+    
+    def count_parameters(self):
+        total_params = sum(p.numel() for p in self.encoder.parameters())
+        total_train_params = sum(p.numel() for p in self.encoder.parameters() if p.requires_grad)
+        print(f'Total parameters: {total_params} \nTotal trainable parameters: {total_train_params}')
     
     def get_filters(self, x, z):
         x = self.encoder(x) # out: [bs, 109, 256]
