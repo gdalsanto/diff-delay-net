@@ -166,6 +166,8 @@ class ASPestNet(nn.Module):
         
         # normalization term 
         self.bc_norm = nn.Parameter(torch.ones(2,6))
+        self.h0_norm = torch.ones((1,1), device=get_device())   # TODO save them!! 
+        self.ir_norm = torch.ones((1,1), device=get_device())
 
     def forward(self, x, z):
 
@@ -209,8 +211,8 @@ class ASPestNet(nn.Module):
         H = C1*torch.einsum('ik,ijk->ij', b, H)
 
         ir_late =  torch.fft.irfft(H,  norm='ortho')
-        h0 = F.pad(h0, (0, self.ir_length-h0.size(dim=1)))
-        ir = (h0 + ir_late[:,:self.ir_length])
+        h0 = self.h0_norm.expand(bs, 1)*F.pad(h0, (0, self.ir_length-h0.size(dim=1)))
+        ir = self.ir_norm.expand(bs, 1)*(h0 + ir_late[:,:self.ir_length])
         return ir, ir_late, h0
 
     def scatter(self, bs):

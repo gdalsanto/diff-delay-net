@@ -67,6 +67,27 @@ def train(args, train_dataset, valid_dataset):
                 os.path.join(args.out_path, 'audio_output'),
                 'target_ir.wav')
 
+    with torch.no_grad():
+        input = next(iter(train_dataset))
+        _,ir_late, h0 = net(input, x) 
+        # compute the energy of early ir and late ir
+        energy_h0 = torch.sum(torch.pow(torch.abs(h0),2), dim=1)
+        energy_late = torch.sum(torch.pow(torch.abs(ir_late),2), dim=1)
+        
+        # match energy of early part to that of late part 
+        # TODO This should be changes with a more meaningful scaling
+
+        net.h0_norm.data.copy_(torch.div(net.h0_norm, 
+                                        torch.pow( torch.min(
+                    energy_h0/energy_late), 1/2)))
+
+        # normalize energy of ir to equal 1 
+        ir ,_, _ = net(input, x)   
+        energy = torch.sum(torch.pow(torch.abs(ir),2), dim=1)
+        net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
+        # apply energy normalization on input and output gains only
+        print('Loss at init : {}'.format(criterion(net(input, x)[0], input)))
+
     # activate profiler
     for epoch in range(init_epoch, args.max_epochs):
         epoch_loss, grad_norm = 0, 0
@@ -81,7 +102,6 @@ def train(args, train_dataset, valid_dataset):
             
             loss = criterion(estimate, target)  # compute loss
             epoch_loss += loss.item()
-            
             loss.backward()
             
             grad_norm += nn.utils.clip_grad_norm_(net.parameters(), args.clip_max_norm)
