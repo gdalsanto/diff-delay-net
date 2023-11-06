@@ -76,11 +76,12 @@ def train(args, train_dataset, valid_dataset):
         for i, data in enumerate(tqdm(train_dataset)):
             input = data
             target = input.clone()
+            optimizer.zero_grad()
             estimate, _, _ = net(input, x)  # get estimate
             
             loss = criterion(estimate, target)  # compute loss
             epoch_loss += loss.item()
-            optimizer.zero_grad()
+            
             loss.backward()
             
             grad_norm += nn.utils.clip_grad_norm_(net.parameters(), args.clip_max_norm)
@@ -104,6 +105,7 @@ def train(args, train_dataset, valid_dataset):
         for i, data in enumerate(tqdm(valid_dataset)):
             input = data
             target = input.clone()
+            optimizer.zero_grad()
             estimate, _, _ = net(input, x)  # get estimate
             loss = criterion(estimate, target)  # compute loss
             epoch_loss += loss.item()  
