@@ -82,23 +82,21 @@ def train(args, train_dataset, valid_dataset):
         'target_ir.wav')
 
     # energy normalization of the df (no bypass)
-    '''
     with torch.no_grad():
         input = next(iter(train_dataset))
         # normalize energy of ir to equal 1 
         ir ,_, _ = net(input, x)   
-        energy = torch.mean(torch.pow(torch.abs(ir),2), dim=1)
+        energy = torch.sum(torch.pow(torch.abs(ir),2), dim=1)
         net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
         # apply energy normalization on input and output gains only
         print('Loss at init : {}'.format(criterion(net(input, x)[0], input)))
-    '''
-    '''
+    
     with torch.no_grad():
         input = next(iter(train_dataset))
         _,ir_late, h0 = net(input, x) 
         # compute the energy of early ir and late ir
-        energy_h0 = torch.mean(torch.pow(torch.abs(h0),2), dim=1)
-        energy_late = torch.mean(torch.pow(torch.abs(ir_late),2), dim=1)
+        energy_h0 = torch.sum(torch.pow(torch.abs(h0),2), dim=1)
+        energy_late = torch.sum(torch.pow(torch.abs(ir_late),2), dim=1)
         
         # match energy of early part to that of late part 
         # TODO This should be changes with a more meaningful scaling
@@ -109,11 +107,11 @@ def train(args, train_dataset, valid_dataset):
 
         # normalize energy of ir to equal 1 
         ir ,_, _ = net(input, x)   
-        energy = torch.mean(torch.pow(torch.abs(ir),2), dim=1)
+        energy = torch.sum(torch.pow(torch.abs(ir),2), dim=1)
         net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
         # apply energy normalization on input and output gains only
         print('Loss at init : {}'.format(criterion(net(input, x)[0], input)))
-    '''
+    
     for epoch in range(args.max_epochs):
         epoch_loss = 0
         grad_norm = 0
@@ -206,7 +204,7 @@ if __name__ == '__main__':
         help='learning rate')
     train_parser.add_argument('--clip_max_norm', default=10, 
         help='gradient clipping maximum gradient norm')
-    train_parser.add_argument('--max_epochs', default=10000, 
+    train_parser.add_argument('--max_epochs', type = int, default=10000, 
         help='max number of epochs')
     train_parser.add_argument('--scheduler_steps', default=250000,
         help='number of training steps needed before activating the lr scheduler')
