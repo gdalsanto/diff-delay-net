@@ -44,13 +44,6 @@ def train(args, train_dataset, valid_dataset):
     args.device = get_device()
     net = net.to(args.device )
     
-    # check if checkpoint is available
-    # arg.out_path will be updated
-    args, net, _ = restore_checkpoint(args, net)
-    # save arguments 
-    with open(os.path.join(args.out_path, 'args.txt'), 'w') as f:
-        f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
-
     # ----------- TRAINING CONFIGURATIONS ----------- # 
     # optimizer 
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
@@ -62,6 +55,16 @@ def train(args, train_dataset, valid_dataset):
         step_size = 50000,
         gamma = 10**(-0.2)
     ) 
+    
+    # check if checkpoint is available
+    # arg.out_path will be updated
+    args, net, _ = restore_checkpoint(args, net, optimizer, criterion)
+    # save arguments 
+    with open(os.path.join(args.out_path, 'args.txt'), 'w') as f:
+        f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
+
+
+
     # early stopping 
     early_stop = EarlyStopper(
         patience=50000, 
@@ -81,39 +84,6 @@ def train(args, train_dataset, valid_dataset):
         os.path.join(args.out_path, 'audio_output'),
         'target_ir.wav')
 
-    # energy normalization of the df (no bypass)
-    '''
-    with torch.no_grad():
-        input = next(iter(train_dataset))
-        # normalize energy of ir to equal 1 
-        ir ,_, _ = net(input, x)   
-        energy = torch.mean(torch.pow(torch.abs(ir),2), dim=1)
-        net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
-        # apply energy normalization on input and output gains only
-        print('Loss at init : {}'.format(criterion(net(input, x)[0], input)))
-    '''
-    '''
-    with torch.no_grad():
-        input = next(iter(train_dataset))
-        _,ir_late, h0 = net(input, x) 
-        # compute the energy of early ir and late ir
-        energy_h0 = torch.mean(torch.pow(torch.abs(h0),2), dim=1)
-        energy_late = torch.mean(torch.pow(torch.abs(ir_late),2), dim=1)
-        
-        # match energy of early part to that of late part 
-        # TODO This should be changes with a more meaningful scaling
-        if args.norm_h0:
-            net.h0_norm.data.copy_(torch.div(
-                net.h0_norm, torch.pow( torch.min(
-                    energy_h0/energy_late), 1/2)))
-
-        # normalize energy of ir to equal 1 
-        ir ,_, _ = net(input, x)   
-        energy = torch.mean(torch.pow(torch.abs(ir),2), dim=1)
-        net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
-        # apply energy normalization on input and output gains only
-        print('Loss at init : {}'.format(criterion(net(input, x)[0], input)))
-    '''
     for epoch in range(args.max_epochs):
         epoch_loss = 0
         grad_norm = 0
@@ -206,7 +176,7 @@ if __name__ == '__main__':
         help='learning rate')
     train_parser.add_argument('--clip_max_norm', default=10, 
         help='gradient clipping maximum gradient norm')
-    train_parser.add_argument('--max_epochs', default=10000, 
+    train_parser.add_argument('--max_epochs', type = int, default=10000, 
         help='max number of epochs')
     train_parser.add_argument('--scheduler_steps', default=250000,
         help='number of training steps needed before activating the lr scheduler')

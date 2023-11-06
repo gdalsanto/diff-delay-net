@@ -8,7 +8,7 @@ import re
 from glob import glob
 
 
-def save_checkpoint(args, net, epoch):
+def save_checkpoint(args, net, optimizer, scheduler, epoch):
     ''' save checkpoint of the network 
     Args:    
         args    parsed arguments
@@ -23,11 +23,18 @@ def save_checkpoint(args, net, epoch):
             args.checkpoint_path = os.path.join(args.out_path, "checkpoint")
             os.makedirs(args.checkpoint_path)
 
+    # create a dictionary to store all the state dictionaries
+    state_dicts = {
+        'net': net.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'scheduler': scheduler.state_dict()
+    }
     filename = "ASPestNet-weights-{:04d}.pt".format(epoch)
-    torch.save(net.state_dict(), os.path.join(args.checkpoint_path, filename))
+    torch.save(state_dicts, os.path.join(args.checkpoint_path, filename))
+
     return args
     
-def restore_checkpoint(args, net, epoch = None, pattern = r'\d{4}'):
+def restore_checkpoint(args, net, optimizer = None, scheduler = None, epoch = None, pattern = r'\d{4}'):
     ''' restore model from checkpoint of the network
     Args:    
         net     model to load the checkpoint onto
@@ -35,7 +42,8 @@ def restore_checkpoint(args, net, epoch = None, pattern = r'\d{4}'):
     '''    
     if not args.restore_checkpoint or args.checkpoint_path is None:
         print('Training a newly initialized network')
-        args = save_checkpoint(args, net, 0)
+        args = save_checkpoint(args, net, optimizer, scheduler, 0)
+        epoch = 0
         return args, net, epoch
     list_paths = glob(args.checkpoint_path)
     list_ids = [int(re.findall(pattern, weight_path)[-1])
@@ -49,8 +57,21 @@ def restore_checkpoint(args, net, epoch = None, pattern = r'\d{4}'):
 
     checkpoint = torch.load(
         filename, map_location=args.device)
-    net.load_state_dict(checkpoint)
-    return args, net, epoch
+
+    net_state_dict = checkpoint['net']
+    optimizer_state_dict = checkpoint['optimizer']
+    scheduler_state_dict = checkpoint['scheduler']
+
+    # load the state dictionaries into your PyTorch model, optimizer, and scheduler
+    if net.training == False:
+        net.load_state_dict(net_state_dict)
+        return args, net.eval(), epoch
+
+    net.load_state_dict(net_state_dict)
+    optimizer.load_state_dict(optimizer_state_dict)
+    scheduler.load_state_dict(scheduler_state_dict)
+    args.out_path = os.path.dirname(args.checkpoint_path).replace('/checkpoint', '')
+    return args, net, optimizer, scheduler, epoch+1
 
 def write_audio(x, dir_path, filename='ir.wav', sr=48000):
     ''' save tensor as wave file
@@ -63,5 +84,5 @@ def write_audio(x, dir_path, filename='ir.wav', sr=48000):
         os.makedirs(dir_path)
     x = x.cpu().numpy()
     # normalize to avoid clipping
-    x = x / np.abs(np.max(x))
+    x = x / np.max(np.abs(x))
     sf.write(os.path.join(dir_path, filename), x, sr)
