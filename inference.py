@@ -62,7 +62,7 @@ def inference(args):
     else:
         input = torch.tensor(load_rir(args.sr, args.rir_length, args.filepath))
 
-
+    '''
     with torch.no_grad():
         _,ir_late, h0 = net(input.unsqueeze(0), x) 
         # compute the energy of early ir and late ir
@@ -79,7 +79,7 @@ def inference(args):
         ir ,_, _ = net(input.unsqueeze(0), x)   
         energy = torch.mean(torch.pow(torch.abs(ir),2), dim=1)
         net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
-
+    '''
     target = input.clone()
     rir_estimated, _, _ = net(input.unsqueeze(0), x)
     # compute loss
