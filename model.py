@@ -210,8 +210,8 @@ class ASPestNet(nn.Module):
         H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D - torch.diag_embed(U*Cdelta)*Q0 + 1e-16))
         H = C1*torch.einsum('ik,ijk->ij', b, H)
 
-        ir_late =  torch.fft.irfft(H,  norm='ortho')
-        h0 = self.h0_norm.expand(bs, 1)*F.pad(h0, (0, self.ir_length-h0.size(dim=1)))
+        ir_late =  self.h0_norm.expand(bs, 1)*torch.fft.irfft(H,  norm='ortho')
+        h0 = F.pad(h0, (0, self.ir_length-h0.size(dim=1)))
         ir = self.ir_norm.expand(bs, 1)*(h0 + ir_late[:,:self.ir_length])
         return ir, ir_late, h0
 
