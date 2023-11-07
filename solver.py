@@ -66,7 +66,7 @@ def train(args, train_dataset, valid_dataset):
     write_audio(test_batch[0,:], 
                 os.path.join(args.out_path, 'audio_output'),
                 'target_ir.wav')
-
+'''
     with torch.no_grad():
         input = next(iter(train_dataset))
         _,ir_late, h0 = net(input, x) 
@@ -79,7 +79,7 @@ def train(args, train_dataset, valid_dataset):
 
         net.h0_norm.data.copy_(torch.div(net.h0_norm, 
                                         torch.pow( torch.min(
-                    energy_h0/energy_late), 1/2)))
+                    energy_late/energy_h0), 1/2)))
 
         # normalize energy of ir to equal 1 
         ir ,_, _ = net(input, x)   
@@ -87,6 +87,7 @@ def train(args, train_dataset, valid_dataset):
         net.ir_norm.data.copy_(torch.div(net.ir_norm, torch.pow( torch.max(energy), 1/2)))
         # apply energy normalization on input and output gains only
         print('Loss at init : {}'.format(criterion(net(input, x)[0], input)))
+'''
 
     # activate profiler
     for epoch in range(init_epoch, args.max_epochs):
