@@ -5,7 +5,7 @@ from utils.utility import get_device
 
 def normalize_energy(x):
     ''' normalize energy of x to 1 '''
-    energy = np.sum(np.power(np.abs(x),2))
+    energy = np.mean(np.power(np.abs(x),2))
     return np.divide(x , np.power(energy, 1/2))
     
 def normalize_energy_torch(x):
