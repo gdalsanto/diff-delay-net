@@ -166,11 +166,11 @@ class ASPestNet(nn.Module):
 
         self.GCdeltaProjLayer = ProjectionLayer(
             (76, 256), 1, 8, 
-            # bias = -10*torch.ones((z1, z2), device=get_device()), 
-            # activation = lambda x: 10**(-torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device()))))
+            bias = -5*torch.ones((z1, z2), device=get_device()), 
+            activation = lambda x: 10**(-torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device()))))
             # SL
-            bias = 2*torch.ones((z1, z2), device=get_device()), 
-            activation = lambda x: 10**(-F.softplus(x-3)))
+            # bias = -10*torch.ones((z1, z2), device=get_device()), 
+            # activation = lambda x: 10**(-F.softplus(x-3)))
         self.RCdeltaProjLayer = ProjectionLayer(
             (76, 256), 1, 8,
             # activation = lambda x: torch.log(1+torch.exp(x))  / torch.log(torch.tensor(2,  device=get_device())))

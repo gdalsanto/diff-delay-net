@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 class EarlyStopper:
     def __init__(self, patience=1, min_delta=0):
@@ -50,3 +51,16 @@ def get_str_results(epoch=None, train_loss=None, valid_loss=None, time=None, los
         to_print += '- lossT: {:6.4f}'.format(lossT) 
 
     return to_print
+
+def db2lin(x):
+    return 10**(x/20)
+
+def rt2gain(rt, fs, delay=1):
+    ''' convert rt (in seconds) to linear gain. If delay is not 1 it computes the 
+    gain per sample '''
+    Gdb = -60*delay/(fs*rt)
+    return db2lin(Gdb)
+
+def gain2rt(g, fs, delay=1):
+    ''' convert linear gain to rt60 (in seconds) '''  
+    return -3*delay/(fs*torch.log10(g))
