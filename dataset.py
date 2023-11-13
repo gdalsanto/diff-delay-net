@@ -8,17 +8,24 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader, random_split
 from utils.processing import *
 from utils.utility import *
+from random import shuffle
 
 class rirDataset(Dataset):
 
     def __init__(self, args):
         # make list of all filenames enclosed in args.path
         pathlist = [y for x in os.walk(args.ds_path) for y in glob(os.path.join(x[0], '*.wav'))]
+        shuffle(pathlist)
         self.pathlist = pathlist 
+        if args.ds_len is not None:
+            ds_len = args.ds_len
+        else:
+            ds_len = len(pathlist)
+
         print("Loading RIRs to {}".format(get_device()))
         self.data_loaded = []
         st = time()
-        for i in tqdm(range(0, len(pathlist))):
+        for i in tqdm(range(0, ds_len)):
 
             rir, samplerate = sf.read(pathlist[i], dtype='float32')
             if samplerate!=args.sr:
