@@ -178,9 +178,9 @@ if __name__ == '__main__':
 
     train_parser.add_argument('--num', default=120000, 
         help='frequency-sampling points') 
-    train_parser.add_argument('--lr', default=10e-5,
+    train_parser.add_argument('--lr', type = float, default=10e-5,
         help='learning rate')
-    train_parser.add_argument('--clip_max_norm', default=10, 
+    train_parser.add_argument('--clip_max_norm', type = float, default=10, 
         help='gradient clipping maximum gradient norm')
     train_parser.add_argument('--max_epochs', type=int,default=10000, 
         help='max number of epochs')
