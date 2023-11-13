@@ -9,6 +9,7 @@ from dataset import *
 from utils.logging import *
 from model import *
 from diff_dsp import *
+import shutil
 
 from losses import *
 
@@ -50,7 +51,8 @@ def train(args, train_dataset, valid_dataset):
     # save arguments 
     with open(os.path.join(args.out_path, 'args.txt'), 'w') as f:
         f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
-
+    # save file
+    shutil.copyfile(__file__, os.path.join(args.out_path, 'solver.py'))
     # ----------- TRAINING CONFIGURATIONS ----------- # 
     # optimizer 
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
