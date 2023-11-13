@@ -63,5 +63,5 @@ def write_audio(x, dir_path, filename='ir.wav', sr=48000):
         os.makedirs(dir_path)
     x = x.cpu().numpy()
     # normalize to avoid clipping
-    x = x / np.abs(np.max(x))
+    x = x / np.max(np.abs(x))
     sf.write(os.path.join(dir_path, filename), x, sr)
