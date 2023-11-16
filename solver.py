@@ -202,11 +202,11 @@ if __name__ == '__main__':
         help='frequency-sampling points') 
     train_parser.add_argument('--lr', default=10e-5,
         help='learning rate')
-    train_parser.add_argument('--clip_max_norm', default=10, 
+    train_parser.add_argument('--clip_max_norm', type=float, default=10, 
         help='gradient clipping maximum gradient norm')
-    train_parser.add_argument('--max_epochs', default=10000, 
+    train_parser.add_argument('--max_epochs', type=int, default=10000, 
         help='max number of epochs')
-    train_parser.add_argument('--scheduler_steps', default=250000,
+    train_parser.add_argument('--scheduler_steps',type=int, default=250000,
         help='number of training steps needed before activating the lr scheduler')
     train_parser.add_argument('--log', action='store_false', 
         help='turn off logging')
