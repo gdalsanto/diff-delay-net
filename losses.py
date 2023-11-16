@@ -22,7 +22,7 @@ class MSSpectralLoss(nn.Module):
                 hop_length = int(n_fft*self.hop_size),
                 window = 'hann',
                 freq_scale = 'log',
-                sr = 44100,
+                sr = 48000,
                 output_format = 'Magnitude',
                 verbose=False,
                 fmin = 20,

@@ -174,11 +174,11 @@ if __name__ == '__main__':
 
     dset_parser = parser.add_argument_group('dset', 'dataset sepcific args')
 
-    dset_parser.add_argument('--sr', default=44100,
+    dset_parser.add_argument('--sr', default=48000,
         help='sample rate')
     dset_parser.add_argument('--ds_path', '-p', 
         help='directly point to dataset path')
-    dset_parser.add_argument('--rir_length', type=float, default=2.,
+    dset_parser.add_argument('--rir_length', type=float, default=1.8,
         help='rir length in seconds')
     dset_parser.add_argument('--split', type=float, default=0.8,
         help='training / validation split')
@@ -191,11 +191,11 @@ if __name__ == '__main__':
 
     train_parser.add_argument('--num', default=120000, 
         help='frequency-sampling points') 
-    train_parser.add_argument('--lr', default=10e-5,
+    train_parser.add_argument('--lr', type = float, default=10e-5,
         help='learning rate')
     train_parser.add_argument('--clip_max_norm', default=10, 
         help='gradient clipping maximum gradient norm')
-    train_parser.add_argument('--max_epochs', default=10000, 
+    train_parser.add_argument('--max_epochs', type=int, default=10000, 
         help='max number of epochs')
     train_parser.add_argument('--scheduler_steps', default=250000,
         help='number of training steps needed before activating the lr scheduler')

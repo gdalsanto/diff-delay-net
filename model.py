@@ -17,7 +17,7 @@ class Encoder(nn.Module):
             hop_length = 128,
             window = 'hann',
             freq_scale = 'log',
-            sr = 44100,
+            sr = 48000,
             output_format = 'Magnitude',
             verbose=False
         )
@@ -134,7 +134,7 @@ class ASPestNet(nn.Module):
         self.encoder = Encoder()
         self.sigmoid = nn.Sigmoid()
         z1, z2 = 1, 8
-        self.sr = 44100
+        self.sr = 48000
         omega_min, omega_max = 40, 12000 
         
         k = torch.arange(1,z2+1,1)
@@ -146,41 +146,41 @@ class ASPestNet(nn.Module):
         #  investigate on the weight initialization. using the default pytorch init 
         # might shuffles the frequencies.
         self.fC1ProjLayer = ProjectionLayer(
-            (78, 256), 1, 8, 
+            (76, 256), 1, 8, 
             bias = bias_f(omegaK),
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))
             # activation = lambda x: torch.tan(torch.pi * self.sigmoid(
             #   torch.tan(torch.pi * x / 44100 )) / 2))
         self.fCdeltaProjLayer = ProjectionLayer(
-            (78, 256), 1, 8, 
+            (76, 256), 1, 8, 
             bias = bias_f(omegaK),
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))           
 
         self.RC1ProjLayer = ProjectionLayer(
-            (78, 256), 1, 8,
+            (76, 256), 1, 8,
             activation = lambda x: torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device())))
         bias = torch.ones((3, 8), device=get_device())
         bias[1, :] = 2*torch.ones((1, 8), device=get_device())
         self.mC1ProjLayer = ProjectionLayer(
-            (78, 256), 3, 8,
+            (76, 256), 3, 8,
             bias = bias)
 
         self.GCdeltaProjLayer = ProjectionLayer(
-            (78, 256), 1, 8, 
+            (76, 256), 1, 8, 
             bias = -10*torch.ones((z1, z2), device=get_device()), 
             activation = lambda x: 10**(-torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device()))))
         self.RCdeltaProjLayer = ProjectionLayer(
-            (78, 256), 1, 8,
+            (76, 256), 1, 8,
             activation = lambda x: torch.log(1+torch.exp(x))  / torch.log(torch.tensor(2,  device=get_device()))) 
             
 
         self.SAProjLayer = ProjectionLayer(
-            (78, 256), 6, 4, 
+            (76, 256), 6, 4, 
             activation = self.sigmoid)
         self.bcProjLayer = ProjectionLayer(
-            (78, 256), 2, 6)
+            (76, 256), 2, 6)
         self.hProjLayer = ProjectionLayer(
-            (78, 256), 1, 232)  # in the original paper it was 100 
+            (76, 256), 1, 232)  # in the original paper it was 100 
 
         # delay lengths
         self.d = torch.tensor([233, 311, 421, 461, 587, 613],  device=get_device())
@@ -196,7 +196,7 @@ class ASPestNet(nn.Module):
             [61, 211, 257, 431], 
             [47, 229, 251, 443]],  device=get_device())   
         # length of IR  
-        self.ir_length = int(2*self.sr)
+        self.ir_length = int(1.8*self.sr)
         
         # normalization term 
         self.bc_norm = nn.Parameter(torch.ones(2,6))
@@ -208,7 +208,7 @@ class ASPestNet(nn.Module):
         # STFT 
         # x = torch.stft(x, n_fft=1024, hop_length=128, window=torch.hann_window(1024), return_complex = True)
         # Model/Task-Agnostic Encoder
-        x = self.encoder(x) # out: [bs, 109, 256] or [bs, 78, 256]
+        x = self.encoder(x) # out: [bs, 109, 256] or [bs, 76, 256]
         # ARP-Groupwise Projection Laters
         bc = self.bcProjLayer(x)
         # bc = bc * self.bc_norm  # apply normalization term 

@@ -52,7 +52,7 @@ def restore_checkpoint(args, net, epoch = None, pattern = r'\d{4}'):
     net.load_state_dict(checkpoint)
     return args, net, epoch
 
-def write_audio(x, dir_path, filename='ir.wav', sr=44100):
+def write_audio(x, dir_path, filename='ir.wav', sr=48000):
     ''' save tensor as wave file
     Args:
         x           tensor to be saved 
