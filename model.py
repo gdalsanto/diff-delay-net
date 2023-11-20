@@ -5,6 +5,7 @@ from nnAudio import features
 from diff_dsp import * 
 from utils.processing import householder_matrix as householder
 from utils.utility import get_device
+from einops import rearrange
 
 # MODEL/TASK_AGNOSTIC ENCODER 
 class Encoder(nn.Module):
@@ -39,7 +40,7 @@ class Encoder(nn.Module):
         
         self.gru1 = nn.GRU(input_size=128, num_layers=2, hidden_size=64, 
             batch_first = True, bidirectional=True)
-        self.gru2 = nn.GRU(input_size=7168, num_layers=2, hidden_size=128,
+        self.gru2 = nn.GRU(input_size=7168, num_layers=1, hidden_size=128,
             batch_first = True, bidirectional=True)
 
         self.lin_depth = 2
@@ -51,8 +52,9 @@ class Encoder(nn.Module):
             ))
     
     def forward(self, x):
+        b = x.shape[0]
         # convert to log-freq log-mag stft 
-        x = torch.log(self.stft(x) + 1e-32)
+        x = torch.log(self.stft(x) + 1e-7)
         # add channel dimension 
         x = torch.unsqueeze(x, 1)
 
@@ -61,14 +63,9 @@ class Encoder(nn.Module):
             x = module[0](x)
         
         # 2. GRUs
-        x = torch.permute(x, (0, 3, 2, 1))
-        T = x.size(dim=1)
-        # TODO sequence length: time and freq axis (my own interpretation)
-        x = torch.reshape(x, (-1, x.size(dim=1)*x.size(dim=2), x.size(dim=3)))
-        x, hn = self.gru1(x)
-        # features: freq and channel axis 
-        x = torch.reshape(x, (-1, T, 7168))
-        x, hn = self.gru2(x)
+        x = rearrange(x, 'b c f t -> (b t) f c')
+        x = rearrange(self.gru1(x)[0], '(b t) f c -> b t (f c)', b=b)
+        x = self.gru2(x)[0]
 
         # 3. stack of 2 linear layaer + layernorm + relu
         for i, module in enumerate(self.lin_list):
@@ -197,11 +194,6 @@ class ASPestNet(nn.Module):
             [47, 229, 251, 443]],  device=get_device())   
         # length of IR  
         self.ir_length = int(1.8*self.sr)
-        
-        # normalization term 
-        self.bc_norm = nn.Parameter(torch.ones(2,6))
-        self.h0_norm = torch.ones((1,1), device=get_device())   # TODO save them!! 
-        self.ir_norm = torch.ones((1,1), device=get_device())
 
     def forward(self, x, z):
         bs = x.size(0)  # batch size
@@ -244,8 +236,8 @@ class ASPestNet(nn.Module):
         H = C1*torch.einsum('ik,ijk->ij', b, H)
         # channel-wise allpass filters 
         ir_late =  torch.fft.irfft(H,  norm='ortho')
-        h0 = self.h0_norm.expand(bs, 1)*F.pad(h0, (0, self.ir_length-h0.size(dim=1)))
-        ir = self.ir_norm.expand(bs, 1)*(h0 + ir_late[:,:self.ir_length])
+        h0 = F.pad(h0, (0, self.ir_length-h0.size(dim=1)))
+        ir = (h0 + ir_late[:,:self.ir_length])
         return ir, ir_late, h0
     
     def get_filters(self, x, z):
