@@ -9,16 +9,18 @@ from einops import rearrange
 
 # MODEL/TASK_AGNOSTIC ENCODER 
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, n_fft=1024, sr=48000, overlap=0.875):
         super().__init__()
         ''' model/task agnostic decoder '''
-
+        hop_length = int(n_fft*(1-overlap))
         self.stft = features.stft.STFT(
-            n_fft = 1024,
-            hop_length = 128,
+            n_fft = n_fft,
+            hop_length = hop_length,
             window = 'hann',
             freq_scale = 'log',
-            sr = 48000,
+            sr = sr,
+            fmin = 20,
+            fmax = sr // 2,
             output_format = 'Magnitude',
             verbose=False
         )

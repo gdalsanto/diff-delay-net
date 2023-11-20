@@ -6,27 +6,29 @@ from utils.utility import get_device
 
 class MSSpectralLoss(nn.Module):
     '''multi scale spectral loss'''
-    def __init__(self):
+    def __init__(self, sr = 48000):
         super().__init__()
         # fft sizes
         self.n_fft = [256, 512, 1024, 2048, 4096]
-        self.hop_size = 0.25
+        self.overlap = 0.875
+        self.sr = sr
         self.l1loss = nn.L1Loss()
 
     def forward(self, y_pred, y_true):
         loss_match = 0 # initialize match loss
         for i, n_fft in enumerate(self.n_fft):
             # initialize stft function with new nfft 
+            hop_length = int(n_fft*(1-self.overlap))
             stft = features.stft.STFT(
                 n_fft = n_fft,
-                hop_length = int(n_fft*self.hop_size),
+                hop_length = hop_length,
                 window = 'hann',
                 freq_scale = 'log',
-                sr = 48000,
-                output_format = 'Magnitude',
-                verbose=False,
+                sr = self.sr,
                 fmin = 20,
-                fmax = 12000,   # TODO ask or check on this 
+                fmax = self.sr // 2,
+                output_format = 'Magnitude',
+                verbose=False
             )
             stft = stft.to(get_device())
 
