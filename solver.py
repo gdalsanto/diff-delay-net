@@ -164,6 +164,8 @@ if __name__ == '__main__':
         help='if true, shuffle the data in the dataset at every epoch')
     dset_parser.add_argument('--batch_size', type=int, default=4,
         help='batch size')
+    dset_parser.add_argument('--len_dataset', type=int,
+        help='number of elements to select from dataset')       
     
     train_parser = parser.add_argument_group('train', 'training sepcific args')
 

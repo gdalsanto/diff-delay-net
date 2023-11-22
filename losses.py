@@ -26,7 +26,7 @@ class MSSpectralLoss(nn.Module):
                 freq_scale = 'log',
                 sr = self.sr,
                 fmin = 20,
-                fmax = self.sr // 2,
+                fmax = 12000, #self.sr // 2,
                 output_format = 'Magnitude',
                 verbose=False
             )

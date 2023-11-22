@@ -20,7 +20,7 @@ class Encoder(nn.Module):
             freq_scale = 'log',
             sr = sr,
             fmin = 20,
-            fmax = sr // 2,
+            fmax = 12000, #sr // 2,
             output_format = 'Magnitude',
             verbose=False
         )
