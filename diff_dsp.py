@@ -79,26 +79,24 @@ def PEQ(x, f, R, G):
     # maybe the activation should not push R to high values 
     # Watch out that the formula used for the  biquad coeff of LP and HP filters are swapped 
     # low shelf filter (as flipped high shelf)
-    # G[:,0] = G[:,0] - torch.tensor(0.001, device=get_device())   # this is needed to prevent the low freq from being aplifyed
     betaLP, alphaLP = compute_biquad_coeff(
-        f[:,0], R[:,0], torch.tensor(1, device=get_device()), 2 * R[:,0] * torch.sqrt(G[:,0]), G[:,0] )
-        # f[:,0], R[:,0], G[:,0], 2 * R[:,0] * torch.sqrt(G[:,0]), torch.tensor(1, device=get_device()) )
-    HHP = biquad_to_tf(x, betaLP[:,:,0], alphaLP[:,:,0]) - 1e-5
+        # [:,0], R[:,0], torch.tensor(1, device=get_device()), 2 * R[:,0] * torch.sqrt(G[:,0]), G[:,0] )
+        f[:,0], R[:,0], G[:,0], 2 * R[:,0] * torch.sqrt(G[:,0]), torch.tensor(1, device=get_device()) )
+    HHP = biquad_to_tf(x, betaLP[:,:,0], alphaLP[:,:,0]) 
     H = HHP 
-
     # high shelf filter (as flipped low shelf)
     
     betaHP, alphaHP = compute_biquad_coeff(
-        f[:,-1], R[:,-1], G[:,-1], 2 * R[:,0] * torch.sqrt(G[:,-1]), torch.tensor(1, device=get_device()) )
-        # f[:,-1], R[:,-1], torch.tensor(1, device=get_device()), 2 * R[:,-1] * torch.sqrt(G[:,-1]), G[:,-1] )  
-    HLP = biquad_to_tf(x, betaHP[:,:,0], alphaHP[:,:,0]) - 1e-5
+        # f[:,-1], R[:,-1], G[:,-1], 2 * R[:,-1] * torch.sqrt(G[:,-1]), torch.tensor(1, device=get_device()) )
+        f[:,-1], R[:,-1], torch.tensor(1, device=get_device()), 2 * R[:,-1] * torch.sqrt(G[:,-1]), G[:,-1] )  
+    HLP = biquad_to_tf(x, betaHP[:,:,0], alphaHP[:,:,0])
     H = H*HLP
 
     # K - 2 peaking filter 
     for k in range(1, K-1):
         beta, alpha = compute_biquad_coeff(
             f[:,k], R[:,k], torch.tensor(1, device=get_device()), 2*R[:,k]*G[:,k], torch.tensor(1, device=get_device()))
-        Hp = biquad_to_tf(x, beta[:,:,0], alpha[:,:,0]) - 1e-5
+        Hp = biquad_to_tf(x, beta[:,:,0], alpha[:,:,0])
         H = H*Hp
     return H
 
