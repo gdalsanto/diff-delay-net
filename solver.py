@@ -16,40 +16,26 @@ def load_dataset(args):
     # get training and valitation dataset
     dataset = rirDataset(args)
     # split data into training and validation set 
-    train_set, valid_set = split_dataset(
-        dataset, args.split)
-
+    train_set, valid_set = split_dataset(dataset, args.split)
     # dataloaders
-    train_loader = get_dataloader(
-        train_set,
-        batch_size=args.batch_size,
-        shuffle = args.shuffle,
-    )
-    
-    valid_loader = get_dataloader(
-        valid_set,
-        batch_size=args.batch_size,
-        shuffle = args.shuffle,
-    )
+    train_loader = get_dataloader(  train_set,
+                                    batch_size=args.batch_size,
+                                    shuffle = args.shuffle,) 
+    valid_loader = get_dataloader(  valid_set,
+                                    batch_size=args.batch_size,
+                                    shuffle = args.shuffle,)
     return train_loader, valid_loader 
 
 def train(args, train_dataset, valid_dataset):
 
-    if (get_device == 'cuda') & torch.cuda.is_available():
+    # set device and tensor tyoe
+    args.device = get_device()
+    if (args.device == 'cuda') & torch.cuda.is_available():
         torch.set_default_tensor_type(torch.cuda.FloatTensor)
-    else:
-        device = 'cpu'
+
     # initialize network
     net = ASPestNet()
-    args.device = get_device()
     net = net.to(args.device )
-    
-    # check if checkpoint is available
-    # arg.out_path will be updated
-    args, net, _ = restore_checkpoint(args, net)
-    # save arguments 
-    with open(os.path.join(args.out_path, 'args.txt'), 'w') as f:
-        f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
 
     # ----------- TRAINING CONFIGURATIONS ----------- # 
     # optimizer 
@@ -57,46 +43,54 @@ def train(args, train_dataset, valid_dataset):
     # loss
     criterion = MSSpectralLoss()
     # learning rate scheduler 
-    scheduler = torch.optim.lr_scheduler.StepLR(
-        optimizer, 
-        step_size = 50000,
-        gamma = 10**(-0.2)
-    ) 
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 
+                                                step_size = 50000,
+                                                gamma = 10**(-0.2)) 
     # early stopping 
-    early_stop = EarlyStopper(
-        patience=50000, 
-        min_delta=1e-4)
+    early_stop = EarlyStopper(  patience=50000, 
+                                min_delta=1e-4)
+    train_loss, valid_loss = [], []
+
+    # check if checkpoint is available
+    # arg.out_path will be updated
+    args, net, optimizer, scheduler, init_epoch = restore_checkpoint(args, 
+                                                                    net, 
+                                                                    optimizer, 
+                                                                    scheduler)
+    args.steps = init_epoch * len(train_dataset)    # note that first epoch = 0 
+    # save arguments 
+    with open(os.path.join(args.out_path, 'args.txt'), 'w') as f:
+        f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
 
     # frequency samples to oveluate the transfer funciton on 
     # args.num is the length of the impulse response. We compute the transfer 
-    # funciton on [0, fs/2] 
-    x = get_frequency_samples(int(np.floor(args.num/2)+1))     
-    args.steps = 0
-    train_loss, valid_loss = [], []
-
+    # function on [0, fs/2] 
+    x = get_frequency_samples(args.num//2+1)     
+    
     # sample one test example from validation set
     test_batch = next(iter(valid_dataset))
-    write_audio(
-        test_batch[0,:], 
-        os.path.join(args.out_path, 'audio_output'),
-        'target_ir.wav')
+    write_audio(test_batch[0,:], 
+                os.path.join(args.out_path, 'audio_output'),
+                'target_ir.wav')
 
-    for epoch in range(args.max_epochs):
-        epoch_loss = 0
-        grad_norm = 0
+    for epoch in range(init_epoch, args.max_epochs):
+        epoch_loss, grad_norm = 0, 0
         st = time.time()
-        # -------- TRAINING
+
+        # ----------- TRAINING ----------- # 
         for i, data in enumerate(tqdm(train_dataset)):
             input = data
             target = input.clone()
             optimizer.zero_grad()
-            estimate, _, _ = net(input, x)
-            # apply loss
-            loss = criterion(estimate, target)
+            estimate, _, _ = net(input, x)  # get estimate
+            
+            loss = criterion(estimate, target) # compute loss
             epoch_loss += loss.item()
             loss.backward()
+
             # clip gridients
-            grad_norm += nn.utils.clip_grad_norm_(net.parameters(), args.clip_max_norm)
+            grad_norm += nn.utils.clip_grad_norm_(net.parameters(), 
+                                                args.clip_max_norm)
             # update the wieghts
             optimizer.step()
             # update scheduler
@@ -107,7 +101,7 @@ def train(args, train_dataset, valid_dataset):
         
         train_loss.append(epoch_loss/len(train_dataset))
 
-        # --------- VALIDATION
+        # ----------- VALIDATION ----------- # 
         epoch_loss = 0
         for i, data in enumerate(tqdm(valid_dataset)):
             input = data
@@ -121,22 +115,19 @@ def train(args, train_dataset, valid_dataset):
         valid_loss.append(epoch_loss/len(valid_dataset))          
         
         et = time.time()
-        to_print = get_str_results(
-            epoch=epoch, 
-            train_loss=train_loss, 
-            valid_loss=valid_loss, 
-            time=et-st)
+        to_print = get_str_results( epoch=epoch, 
+                                    train_loss=train_loss, 
+                                    valid_loss=valid_loss, 
+                                    time=et-st)
         print(to_print)
 
-        # LOGGING every 10 epochs 
-        # if (epoch % 10) == 0:
-        save_checkpoint(args, net, epoch)
+        # --------- LOGGING
+        save_checkpoint(args, net, optimizer, scheduler, epoch)
 
         test_ir_out, _, _ = net(test_batch, x)
-        write_audio(
-            test_ir_out[0,:].detach(), 
-            os.path.join(args.out_path, 'audio_output'),
-            'e{:04d}-output-ir-loss{:.3f}.wav'.format(epoch, criterion(test_ir_out[0,:], test_batch[0,:])))
+        write_audio(test_ir_out[0,:].detach(), 
+                    os.path.join(args.out_path, 'audio_output'),
+                    'e{:04d}-output-ir-loss{:.3f}.wav'.format(epoch, criterion(test_ir_out[0,:], test_batch[0,:])))
         
         with open(os.path.join(args.out_path, 'log.txt'), "a") as file:
             file.write("epoch: {:04d} train loss: {:6.4f} valid loss: {:6.4f}\n".format(
