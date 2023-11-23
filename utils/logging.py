@@ -73,7 +73,7 @@ def restore_checkpoint(args, net, optimizer = None, scheduler = None, epoch = No
     # load the state dictionaries into your PyTorch model, optimizer, and scheduler
     if net.training == False:
         net.load_state_dict(net_state_dict)
-        return args, net.eval(), epoch
+        return args, net, epoch
 
     net.load_state_dict(net_state_dict)
     optimizer.load_state_dict(optimizer_state_dict)
