@@ -107,11 +107,7 @@ class ProjectionLayer(nn.Module):
         self.linear2 = nn.Linear(in_feats[1], z2)
         # initialize bias 
         if bias is not None:
-            self.linear2.bias.data.fill_(0)
             self.linear2.bias = nn.Parameter(bias)
-        else:
-            self.linear1.bias.data.fill_(0)
-            self.linear2.bias.data.fill_(0)
         self.activation = activation
 
     def forward(self, x):
