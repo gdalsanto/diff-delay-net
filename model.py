@@ -140,6 +140,9 @@ class ASPestNet(nn.Module):
 
         #  investigate on the weight initialization. using the default pytorch init 
         # might shuffles the frequencies.
+        # following bias and activation function lead to the following central 
+        # frequnecies at the beginning
+        # [251.3274, 567.6940, 1282.2977, 2896.4321, 6542.4102, 14777.8818, 33380.0312, 75398.2266] 
         self.fC1ProjLayer = ProjectionLayer(
             (76, 256), 1, 8, 
             bias = bias_f(omegaK),
