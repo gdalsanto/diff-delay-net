@@ -66,10 +66,14 @@ def restore_checkpoint(args, net, optimizer = None, scheduler = None, epoch = No
         filename, map_location=args.device)
 
     # access individual state dictionaries
-    net_state_dict = checkpoint['net']
-    optimizer_state_dict = checkpoint['optimizer']
-    scheduler_state_dict = checkpoint['scheduler']
-
+    try:
+        net_state_dict = checkpoint['net']
+        optimizer_state_dict = checkpoint['optimizer']
+        scheduler_state_dict = checkpoint['scheduler']
+    except:
+        net_state_dict = checkpoint
+        net.load_state_dict(net_state_dict)
+        return args, net, epoch
     # load the state dictionaries into your PyTorch model, optimizer, and scheduler
     if net.training == False:
         net.load_state_dict(net_state_dict)
