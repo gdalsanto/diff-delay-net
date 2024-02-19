@@ -206,8 +206,8 @@ class ASPestNet(nn.Module):
         bc = self.bcProjLayer(x)
         # bc = bc * self.bc_norm  # apply normalization term 
         b, c = bc[:, 0, :], bc[:, 1, :]
-        b = torch.complex(b, torch.zeros(b.size(), device=get_device()))
-        c = torch.complex(c, torch.zeros(c.size(),  device=get_device()))
+        b = torch.complex(b, torch.zeros_like(b))
+        c = torch.complex(c, torch.zeros_like(c))
         h0 = self.hProjLayer(x).squeeze(dim=1)
         # common post filter
         fC1 = self.fC1ProjLayer(x).squeeze(dim=1)
@@ -233,9 +233,8 @@ class ASPestNet(nn.Module):
         # TODO find why U creates resonances and balance energy of the ealry reflections
         # H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D -  torch.diag_embed(Cdelta)*torch.matmul(Q0,Gamma)))
         H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D - torch.diag_embed(U*Cdelta)*Q0 + 1e-16))
-        
         H = C1*torch.einsum('ik,ijk->ij', b, H)
-        # channel-wise allpass filters 
+        
         ir_late =  torch.fft.irfft(H,  norm='ortho')
         h0 = F.pad(h0, (0, self.ir_length-h0.size(dim=1)))
         ir = (h0 + ir_late[:,:self.ir_length])
@@ -280,3 +279,6 @@ class ASPestNet(nn.Module):
             except:
                 continue
         return parameters, filters_tf
+    
+    def get_n_param(self):
+        return sum(p.numel() for p in self.parameters())

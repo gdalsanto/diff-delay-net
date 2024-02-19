@@ -32,10 +32,11 @@ def train(args, train_dataset, valid_dataset):
     args.device = get_device()
     if (args.device == 'cuda') & torch.cuda.is_available():
         torch.set_default_tensor_type(torch.cuda.FloatTensor)
+    print("Device: "+str(args.device))
 
     # initialize network
     net = ASPestNet()
-    net = net.to(args.device )
+    net = net.to(args.device)
 
     # ----------- TRAINING CONFIGURATIONS ----------- # 
     # optimizer 
