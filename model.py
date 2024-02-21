@@ -208,7 +208,7 @@ class ASPestNet(nn.Module):
         b, c = bc[:, 0, :], bc[:, 1, :]
         b = torch.complex(b, torch.zeros_like(b))
         c = torch.complex(c, torch.zeros_like(c))
-        h0 = self.hProjLayer(x).squeeze(dim=1)
+        # h0 = self.hProjLayer(x).squeeze(dim=1)
         # common post filter
         fC1 = self.fC1ProjLayer(x).squeeze(dim=1)
         RC1 = self.RC1ProjLayer(x).squeeze(dim=1)
@@ -236,9 +236,10 @@ class ASPestNet(nn.Module):
         H = C1*torch.einsum('ik,ijk->ij', b, H)
         
         ir_late =  torch.fft.irfft(H,  norm='ortho')
-        h0 = F.pad(h0, (0, self.ir_length-h0.size(dim=1)))
-        ir = (h0 + ir_late[:,:self.ir_length])
-        return ir, ir_late, h0
+        # h0 = F.pad(h0, (0, self.ir_length-h0.size(dim=1)))*0
+        # ir = (h0 + ir_late[:,:self.ir_length])
+        ir = ir_late[:,:self.ir_length]
+        return ir, ir_late, torch.zeros(1)
     
     def get_filters(self, x, z):
         x = self.encoder(x) # out: [bs, 109, 256]
