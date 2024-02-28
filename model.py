@@ -184,7 +184,7 @@ class ASPestNet(nn.Module):
         self.d = torch.tensor([233, 311, 421, 461, 587, 613],  device=get_device())
         self.M = self.d.size(0)
         # self.Q0 = torch.tensor(householder(self.M), device=get_device())  # TODO: when to change Houlsehoöder matrix ? 
-        self.Q0 = 1/3 * torch.ones(6,6) - torch.eye(6)
+        self.Q0 = 1/3 * torch.ones(6,6, device=get_device()) - torch.eye(6, device=get_device())
         # all pass filter delay lengths
         self.dAP = torch.tensor([
             [131, 151, 337, 353], 
