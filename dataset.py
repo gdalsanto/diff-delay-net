@@ -65,7 +65,61 @@ class rirDataset(Dataset):
     def get_pathlist(self):
         return self.pathlist
 
+class speechDataset(Dataset):
 
+    def __init__(self, args):
+        # make list of all filenames enclosed in args.path
+        pathlist = [y for x in os.walk(args.ds_path) for y in glob(os.path.join(x[0], '*.wav'))]
+        shuffle(pathlist)
+        # select subset 
+        if args.len_dataset is not None:
+            pathlist = pathlist[:args.len_dataset]
+        print("Loading RIRs to {}".format(get_device()))
+        self.data_loaded = []
+        st = time()
+        for i in tqdm(range(0, len(pathlist))):
+
+            rir, samplerate = sf.read(pathlist[i], dtype='float32')
+            if samplerate!=args.sr:
+                raise ValueError('Wrong samplerate: detected {} - required {}'.format(samplerate, args.sr))
+            # if multichannel, take only the first channel
+            if len(rir.shape)>1:
+                print('Converting to mono by taking only the first channel')
+                rir = rir[0, :]
+            # adjust length 
+            rir_len_samples = int(args.rir_length*args.sr)
+            if rir.shape[0] > rir_len_samples:
+                rir = rir[:rir_len_samples]
+            elif rir.shape[0] < rir_len_samples:
+                rir = np.pad(rir, 
+                ((0, rir_len_samples - rir.shape[0])),
+                mode = 'constant')
+
+            # --------------- PREPROCESSING --------------- #
+            # remove onset 
+            onset = find_onset(rir)
+            rir = np.pad(rir[onset:],(0, onset))
+            # multply random gain to direct sound 
+            rir = augment_direct_gain(rir, sr=args.sr)
+            # nornalize 
+            rir = normalize_energy(rir)
+            # --------------------------------------------- #
+            
+            # convert to tensor and move to device 
+            self.data_loaded.append(torch.tensor(rir).to(get_device()))
+            del rir
+        et = time()
+        print('Finished loading RIRs in {:.3f} seconds'.format(et-st))
+        
+    def __len__(self):
+        return len(self.data_loaded)
+
+    def __getitem__(self, index):
+        return self.data_loaded[index]
+    
+    def get_pathlist(self):
+        return self.pathlist
+    
 def split_dataset(dataset, split):
     ''' randomly split a dataset into non-overlapping new datasets of 
     sizes given in 'split' argument'''
