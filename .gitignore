@@ -5,3 +5,4 @@ output/
 shungo-dar/
 /inference
 /reference-model
+/.venv

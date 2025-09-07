@@ -144,41 +144,41 @@ class ASPestNet(nn.Module):
         # frequnecies at the beginning
         # [251.3274, 567.6940, 1282.2977, 2896.4321, 6542.4102, 14777.8818, 33380.0312, 75398.2266] 
         self.fC1ProjLayer = ProjectionLayer(
-            (76, 256), 1, 8, 
+            (109, 256), 1, 8, 
             bias = bias_f(omegaK),
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))
             # activation = lambda x: torch.tan(torch.pi * self.sigmoid(
             #   torch.tan(torch.pi * x / 44100 )) / 2))
         self.fCdeltaProjLayer = ProjectionLayer(
-            (76, 256), 1, 8, 
+            (109, 256), 1, 8, 
             bias = bias_f(omegaK),
             activation = lambda x: torch.tan(torch.pi * self.sigmoid(x)/2))           
 
         self.RC1ProjLayer = ProjectionLayer(
-            (76, 256), 1, 8,
+            (109, 256), 1, 8,
             activation = lambda x: torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device())))
         bias = torch.ones((3, 8), device=get_device())
         bias[1, :] = 2*torch.ones((1, 8), device=get_device())
         self.mC1ProjLayer = ProjectionLayer(
-            (76, 256), 3, 8,
+            (109, 256), 3, 8,
             bias = bias)
 
         self.GCdeltaProjLayer = ProjectionLayer(
-            (76, 256), 1, 8, 
+            (109, 256), 1, 8, 
             bias = -10*torch.ones((z1, z2), device=get_device()), 
             activation = lambda x: 10**(-torch.log(1+torch.exp(x)) / torch.log(torch.tensor(2,  device=get_device()))))
         self.RCdeltaProjLayer = ProjectionLayer(
-            (76, 256), 1, 8,
+            (109, 256), 1, 8,
             activation = lambda x: torch.log(1+torch.exp(x))  / torch.log(torch.tensor(2,  device=get_device()))) 
             
 
         self.SAProjLayer = ProjectionLayer(
-            (76, 256), 6, 4, 
+            (109, 256), 6, 4, 
             activation = self.sigmoid)
         self.bcProjLayer = ProjectionLayer(
-            (76, 256), 2, 6)
+            (109, 256), 2, 6)
         self.hProjLayer = ProjectionLayer(
-            (76, 256), 1, 232)  # in the original paper it was 100 
+            (109, 256), 1, 232)  # in the original paper it was 100 
 
         # delay lengths
         self.d = torch.tensor([233, 311, 421, 461, 587, 613],  device=get_device())
@@ -196,31 +196,31 @@ class ASPestNet(nn.Module):
         # length of IR  
         self.ir_length = int(1.8*self.sr)
 
-    def forward(self, x, z):
+    def forward(self, x, dry, z):
         bs = x.size(0)  # batch size
         # STFT 
         # x = torch.stft(x, n_fft=1024, hop_length=128, window=torch.hann_window(1024), return_complex = True)
         # Model/Task-Agnostic Encoder
-        x = self.encoder(x) # out: [bs, 109, 256] or [bs, 76, 256]
+        lat = self.encoder(x) # out: [bs, 109, 256] or [bs, 109, 256]
         # ARP-Groupwise Projection Laters
-        bc = self.bcProjLayer(x)
+        bc = self.bcProjLayer(lat)
         # bc = bc * self.bc_norm  # apply normalization term 
         b, c = bc[:, 0, :], bc[:, 1, :]
         b = torch.complex(b, torch.zeros_like(b))
         c = torch.complex(c, torch.zeros_like(c))
         # h0 = self.hProjLayer(x).squeeze(dim=1)
         # common post filter
-        fC1 = self.fC1ProjLayer(x).squeeze(dim=1)
-        RC1 = self.RC1ProjLayer(x).squeeze(dim=1)
-        mC1 = self.mC1ProjLayer(x)
+        fC1 = self.fC1ProjLayer(lat).squeeze(dim=1)
+        RC1 = self.RC1ProjLayer(lat).squeeze(dim=1)
+        mC1 = self.mC1ProjLayer(lat)
         C1 = SVF(z, fC1, RC1, mC1[:, 0, :], mC1[:, 1, :], mC1[:, 2, :])
         # common parallel delta-coloration filters 
-        fCdelta = self.fCdeltaProjLayer(x).squeeze(dim=1)
-        GCdelta = self.GCdeltaProjLayer(x).squeeze(dim=1)
-        RCdelta = self.RCdeltaProjLayer(x).squeeze(dim=1)
+        fCdelta = self.fCdeltaProjLayer(lat).squeeze(dim=1)
+        GCdelta = self.GCdeltaProjLayer(lat).squeeze(dim=1)
+        RCdelta = self.RCdeltaProjLayer(lat).squeeze(dim=1)
         Cdelta = PEQ(z, fCdelta, RCdelta, GCdelta)
         Cdelta = Cdelta.expand(self.M, -1, -1).permute(1, 2, 0)
-        gamma = self.SAProjLayer(x)
+        gamma = self.SAProjLayer(lat)
         U = SAP(z, self.dAP, gamma)
         # channel-wise allpass filters
        
@@ -229,22 +229,29 @@ class ASPestNet(nn.Module):
         # unitary matrix - Householder
 
         Q0 = self.Q0
-        # Gamma = torch.diag(0.9999**self.d)
-        # TODO find why U creates resonances and balance energy of the ealry reflections
         # H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D -  torch.diag_embed(Cdelta)*torch.matmul(Q0,Gamma)))
         H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D - torch.diag_embed(U*Cdelta)*Q0 + 1e-16))
         H = C1*torch.einsum('ik,ijk->ij', b, H)
-        
-        ir_late =  torch.fft.irfft(H,  norm='ortho')
-        # h0 = F.pad(h0, (0, self.ir_length-h0.size(dim=1)))*0
-        # ir = (h0 + ir_late[:,:self.ir_length])
-        ir = ir_late[:,:self.ir_length]
-        return ir, ir_late, torch.zeros(1)
+        H_speech = torch.einsum('ik, ik -> ik', torch.fft.rfft(dry, norm='ortho', n=(len(z)-1)*2).squeeze(1), H)
+        fdn_ir =  torch.fft.irfft(H,  norm='ortho')
+        wet = torch.fft.irfft(H_speech,  norm='ortho')
+
+        ext_params = self.get_filters(x, z)[0]
+        return wet, fdn_ir, ext_params, lat
     
     def get_filters(self, x, z):
         x = self.encoder(x) # out: [bs, 109, 256]
         # get filters parameters and freuqency response as dictionary 
         parameters = {}
+        # input output gains
+        bc = self.bcProjLayer(x)
+        b, c = bc[:, 0, :], bc[:, 1, :]
+        parameters['b'] = b 
+        parameters['c'] = c
+        # delays 
+        parameters['d'] = self.d
+        # mixing matrix 
+        parameters['Q'] = self.Q0
         # TODO parameters are missing 
         parameters['fC1'] = self.fC1ProjLayer(x).squeeze(dim=1)
         parameters['RC1'] = self.RC1ProjLayer(x).squeeze(dim=1)
@@ -279,6 +286,7 @@ class ASPestNet(nn.Module):
                 parameters[param_key] = parameters[param_key].detach().numpy()
             except:
                 continue
+
         return parameters, filters_tf
     
     def get_n_param(self):
