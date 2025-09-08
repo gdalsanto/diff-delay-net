@@ -270,20 +270,20 @@ class ASPestNet(nn.Module):
             parameters['RC1'], 
             parameters['mC1'][:, 0, :], 
             parameters['mC1'][:, 1, :], 
-            parameters['mC1'][:, 2, :]).detach().numpy()
+            parameters['mC1'][:, 2, :]).cpu().detach().numpy()
         filters_tf['Cdelta'] = PEQ(
             z, 
             parameters['fCdelta'], 
             parameters['GCdelta'], 
-            parameters['RCdelta']).detach().numpy()
+            parameters['RCdelta']).cpu().detach().numpy()
         filters_tf['U'] = SAP(
             z, 
             self.dAP, 
-            parameters['gamma']).detach().numpy()
-        
+            parameters['gamma']).cpu().detach().numpy()
+
         for param_key in parameters:
             try:
-                parameters[param_key] = parameters[param_key].detach().numpy()
+                parameters[param_key] = parameters[param_key].cpu().detach().numpy()
             except:
                 continue
 
