@@ -27,27 +27,27 @@ def save_batch(step_dict, out_dir, batch_idx):
     batch_size = dry.shape[0]
     for i in range(batch_size):
         save_audio(
-            os.path.join(out_dir, f"dry_{batch_idx*batch_size + i:04d}.wav"),
+            os.path.join(out_dir, f"{(batch_idx):03d}_{i:03d}_dry.wav"),
             dry[i],
             48000,
         )
         save_audio(
-            os.path.join(out_dir, f"wet_{batch_idx*batch_size + i:04d}.wav"),
+            os.path.join(out_dir, f"{(batch_idx):03d}_{i:03d}_wet.wav"),
             wet[i],
             48000,          
         )
         save_audio(
-            os.path.join(out_dir, f"wet_fdn_{batch_idx*batch_size + i:04d}.wav"),          
+            os.path.join(out_dir, f"{(batch_idx):03d}_{i:03d}_wet_fdn.wav"),
             wet_fdn[i],
             48000,
         )
         save_audio(
-            os.path.join(out_dir, f"rir_{batch_idx*batch_size + i:04d}.wav"),
+            os.path.join(out_dir, f"{(batch_idx):03d}_{i:03d}_rir.wav"),
             rir[i],
             48000,          
         )
         save_audio(
-            os.path.join(out_dir, f"rir_fdn_{batch_idx*batch_size + i:04d}.wav"),          
+            os.path.join(out_dir, f"{(batch_idx):03d}_{i:03d}_rir_fdn.wav"),
             rir_fdn[i],
             48000,
         )        
@@ -144,8 +144,6 @@ def train(args, dataset):
             leave=False,
         ) as pbar:
             for batch in pbar:
-                if batch_idx == 2:
-                    break
                 optimizer.zero_grad()
                 step_dict = step(model, batch, freqs, args.device)
                 pred = step_dict["wet_fdn"]
@@ -181,8 +179,6 @@ def train(args, dataset):
             pbar.set_description("Validating...")
             pbar.refresh()
             for batch in dataset.valid_loader:
-                if batch_idx == 2:
-                    break
                 with torch.no_grad():
                     step_dict = step(model, batch, freqs, args.device)
                     pred = step_dict["wet_fdn"]
@@ -232,8 +228,6 @@ def train(args, dataset):
         outputs = []
         for batch in tqdm(dataset.test_loader):
             with torch.no_grad():
-                if batch_idx == 2:
-                    break
                 step_dict = step(model, batch, freqs, args.device)
                 save_batch(step_dict, log_dir, batch_idx)
                 out_dict = {
@@ -265,11 +259,7 @@ def train(args, dataset):
         batch_idx += 1
         print("\nTesting aborted by user, attempting to compute metrics.")
 
-    try:
-        compute_speech2fdn_metrics(outputs, log_dir)
-
-    except Exception as e:
-        print(f"Error computing metrics: {e}")
+    compute_speech2fdn_metrics(outputs, log_dir)
 
     epoch_loss /= max(1, batch_idx)
     logger.add_scalar("loss/test", epoch_loss)
