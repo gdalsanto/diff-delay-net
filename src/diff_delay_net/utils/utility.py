@@ -1,10 +1,11 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 import torch
 import os
 import numpy as np
 from scipy.signal import butter, sosfilt, zpk2sos
 from numpy import ndarray
 import soundfile as sf
+from scipy.stats import linregress
 
 def save_audio(filepath, x, fs=48000):
     # check if the folder exists
@@ -124,6 +125,33 @@ def decaytime_from_edc(h: ndarray, thresh: float = -30, fs: int = 16000) -> floa
     edc = get_edc(h)
     return np.argmin(edc >= thresh) / fs
 
+def decaytime_from_edc(
+    h: ndarray, 
+    fs: int, 
+    decay_start_db: float = -5, 
+    decay_end_db: float = -35
+) -> float:
+    """
+    Estimate the reverberation time (RT60) from an Energy Decay Curve (EDC) using linear regression.
+    
+    RT60 is the time required for the sound pressure level to decrease by 60 dB.
+    This function estimates RT60 by fitting a linear regression to the decay portion
+    of the energy decay curve.
+    """
+    edc_db = get_edc(h)
+    time = np.arange(len(edc_db)) / fs
+    valid_range = (edc_db < decay_start_db) & (edc_db > decay_end_db)
+    
+    if not np.any(valid_range):
+        return float('inf'), 0.0, 0.0, valid_range
+    
+    time_valid = time[valid_range.squeeze()]
+    edc_valid = edc_db[valid_range]
+
+    slope, intercept, *_ = linregress(time_valid, edc_valid)
+    rt60 = -60 / slope if slope != 0 else float('inf')
+    
+    return rt60
 
 class RIRParameters:
     """
@@ -207,7 +235,7 @@ class RIRParameters:
         h_oct = self.oct_fb(h)
         h_third_oct = self.third_oct_fb(h)
 
-        t30 = np.array([decaytime_from_edc(band, -30, self.fs) for band in h_oct])
+        t30 = np.array([decaytime_from_edc(band, self.fs, -5, -35) for band in h_oct])
 
         c50 = np.array([self.compute_c50(band) for band in h_oct])
 
