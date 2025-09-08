@@ -115,7 +115,6 @@ def train(args, dataset):
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 
                                                 step_size = 50000,
                                                 gamma = 10**(-0.2)) 
-    train_loss, valid_loss = [], []
 
     # save arguments 
     with open(os.path.join(args.out_path, 'args.txt'), 'w') as f:
