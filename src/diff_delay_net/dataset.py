@@ -77,8 +77,8 @@ class speechDataset(Dataset):
         self.data_tuple = ["dry.pyd", "wet.pyd", "rir.pyd", "wetspec.pyd"]
                 # make list of all filenames enclosed in args.path
         train_url = os.path.join(args.ds_path, 'train-{0000..0035}.tar')
-        valid_url = os.path.join(args.ds_path, 'valid-{0000..0035}.tar')
-        test_url = os.path.join(args.ds_path, 'test-{0000..0035}.tar')
+        valid_url = os.path.join(args.ds_path, 'valid-{0000..0004}.tar')
+        test_url = os.path.join(args.ds_path, 'test-{0000..0004}.tar')
         train_dataset, valid_dataset, test_dataset = [
             WebDataset(url, shardshuffle=shuff)
             .shuffle(0)
