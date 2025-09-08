@@ -90,17 +90,10 @@ def compute_rir_metrics(outputs: List[dict]) -> Dict:
         "c50_corr": c50_corr.tolist(),
     }
 
-
-def compute_rir2fdn_metrics(outputs: List[dict], out_dir: Path) -> None:
-    rir_metrics = compute_rir_metrics(outputs)
-    with open(out_dir / "metrics.json", "w") as f:
-        json.dump(rir_metrics, f, indent=2)
-    print(f"Metrics saved to {out_dir / 'metrics.json'}")
-
-
 def compute_speech2fdn_metrics(outputs: List[dict], out_dir: Path):
     # fad = compute_fad(outputs)
     rir_metrics = compute_rir_metrics(outputs)
-    with open(out_dir / "metrics.json", "w") as f:
-        json.dump({"fad": fad, **rir_metrics}, f, indent=2)
-    print(f"Metrics saved to {out_dir / 'metrics.json'}")
+    with open(out_dir + "/metrics.json", "w") as f:
+        # json.dump({"fad": fad, **rir_metrics}, f, indent=2)
+        json.dump({**rir_metrics}, f, indent=2)
+    print(f"Metrics saved to {out_dir + '/metrics.json'}")
