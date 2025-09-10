@@ -327,12 +327,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.out_path is None:
+        base_dir = 'output'
+    else: 
+        base_dir = args.out_path
     # make directory where to store checkpoints, outputs, and log files
-        args.out_path = os.path.join('output', time.strftime("%Y%m%d-%H%M%S"))
-        os.makedirs(args.out_path)
-        if args.checkpoint_path is None:
-            args.checkpoint_path = os.path.join(args.out_path, "checkpoint")
-            os.makedirs(args.checkpoint_path)
+    args.out_path = os.path.join(base_dir, time.strftime("%Y%m%d-%H%M%S"))
+    os.makedirs(args.out_path)
+    if args.checkpoint_path is None:
+        args.checkpoint_path = os.path.join(args.out_path, "checkpoint")
+        os.makedirs(args.checkpoint_path)
 
     dataset = load_dataset(args)
     
