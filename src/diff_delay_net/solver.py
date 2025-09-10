@@ -269,7 +269,7 @@ def train(args, dataset):
     model_path = os.path.join(log_dir, "model.pth")
     torch.save(model.cpu().state_dict(), model_path)
     print(f"Model saved to {model_path}")
-    with (log_dir / "outputs.pkl").open("wb") as f:
+    with open(log_dir + "/outputs.pkl", "wb") as f:
         pickle.dump(outputs, f)
 
     logger.close()
