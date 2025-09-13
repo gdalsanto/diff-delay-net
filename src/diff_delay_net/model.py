@@ -176,7 +176,8 @@ class ASPestNet(nn.Module):
             (109, 256), 6, 4, 
             activation = self.sigmoid)
         self.bcProjLayer = ProjectionLayer(
-            (109, 256), 2, 6)
+            (109, 256), 2, 6, 
+            activation = lambda x: 10*x) 
         self.hProjLayer = ProjectionLayer(
             (109, 256), 1, 232)  # in the original paper it was 100 
 
