@@ -118,12 +118,12 @@ def decaytime_from_slopes(
     return t60, edc_interp
 
 
-def decaytime_from_edc(h: ndarray, thresh: float = -30, fs: int = 16000) -> float:
-    """
-    Returns decay time (s) from the EDC crossing a threshold.
-    """
-    edc = get_edc(h)
-    return np.argmin(edc >= thresh) / fs
+# def decaytime_from_edc(h: ndarray, thresh: float = -30, fs: int = 16000) -> float:
+#     """
+#     Returns decay time (s) from the EDC crossing a threshold.
+#     """
+#     edc = get_edc(h)
+#     return np.argmin(edc >= thresh) / fs
 
 def decaytime_from_edc(
     h: ndarray, 

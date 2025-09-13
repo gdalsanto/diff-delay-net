@@ -232,9 +232,9 @@ class ASPestNet(nn.Module):
         # H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D -  torch.diag_embed(Cdelta)*torch.matmul(Q0,Gamma)))
         H = torch.einsum('ik,ijkk->ijk', c, torch.inverse(D - torch.diag_embed(U*Cdelta)*Q0 + 1e-16))
         H = C1*torch.einsum('ik,ijk->ij', b, H)
-        H_speech = torch.einsum('ik, ik -> ik', torch.fft.rfft(dry, norm='ortho', n=(len(z)-1)*2).squeeze(1), H)
-        fdn_ir =  torch.fft.irfft(H,  norm='ortho')
-        wet = torch.fft.irfft(H_speech,  norm='ortho')
+        H_speech = torch.einsum('ik, ik -> ik', torch.fft.rfft(dry, n=(len(z)-1)*2).squeeze(1), H)
+        fdn_ir =  torch.fft.irfft(H)
+        wet = torch.fft.irfft(H_speech)
 
         ext_params = self.get_filters(x, z)[0]
         return wet, fdn_ir, ext_params, lat

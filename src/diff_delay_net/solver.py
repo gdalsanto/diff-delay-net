@@ -147,7 +147,7 @@ def train(args, dataset):
                 optimizer.zero_grad()
                 step_dict = step(model, batch, freqs, args.device)
                 pred = step_dict["wet_fdn"]
-                target = step_dict["wet"]
+                target = step_dict["wet"][:, 0, :]
                 
                 # compute losses
                 signal_loss = 0
@@ -182,7 +182,7 @@ def train(args, dataset):
                 with torch.no_grad():
                     step_dict = step(model, batch, freqs, args.device)
                     pred = step_dict["wet_fdn"]
-                    target = step_dict["wet"]
+                    target = step_dict["wet"][:, 0, :]
 
                     # compute losses
                     signal_loss = 0
@@ -231,13 +231,15 @@ def train(args, dataset):
                 step_dict = step(model, batch, freqs, args.device)
                 # save_batch(step_dict, log_dir, batch_idx)
                 out_dict = {
-                    "dry": step_dict["dry"].cpu().numpy().squeeze(),
-                    "wet": step_dict["wet"].cpu().numpy().squeeze(),
+                    "dry": step_dict["dry"][:, 0, :].cpu().numpy().squeeze(),
+                    "wet": step_dict["wet"][:, 0, :].cpu().numpy().squeeze(),
                     "wet_fdn": step_dict["wet_fdn"].cpu().numpy().squeeze(),
-                    "rir": step_dict["rir"].cpu().numpy().squeeze(),
+                    "rir": step_dict["rir"][:, 0, :].cpu().numpy().squeeze(),
                     "rir_fdn": step_dict["rir_fdn"].cpu().numpy().squeeze(),
                     "ext_params": step_dict["ext_params"],
                 }
+                pred = step_dict["wet_fdn"]
+                target = step_dict["wet"][:, 0, :]
 
                 # compute losses
                 signal_loss = 0
@@ -245,7 +247,7 @@ def train(args, dataset):
                     name = loss.__class__.__name__
                     tmp = loss(pred, target)
                     signal_loss += weight * tmp
-                    logger.add_scalar(f"loss/train_{name}", tmp.item(), step_idx)
+                    logger.add_scalar(f"loss/test_{name}", tmp.item(), step_idx)
                     if tmp.isnan():
                         raise ValueError(f"Loss {name} is NaN.")
 
