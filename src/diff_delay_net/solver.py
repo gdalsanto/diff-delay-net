@@ -59,7 +59,7 @@ def step(model, batch, freqs, device):
     dry = dry.to(device)[:, :, :int(2.5*48000)]  # use only first 2.5 seconds
     # wet = wet.to(device)[:, :, :int(2.5*48000)] 
     rir_norm = rir / torch.sqrt(torch.sum(rir**2, dim=-1, keepdim=True))
-    wet = torch.tensor(oaconvolve(dry, rir_norm, mode="full", axes=-1)).to(device)[:, :, :int(2.5*48000)] 
+    wet = torch.tensor(oaconvolve(dry.cpu(), rir_norm.cpu(), mode="full", axes=-1)).to(device)[:, :, :int(2.5*48000)] 
     wetspec = wetspec.to(device)
     
     wet_fdn, rir_fdn, ext_params, z = model(wet, dry, freqs)
