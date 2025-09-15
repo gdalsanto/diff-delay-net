@@ -13,9 +13,10 @@ from model import *
 from diff_dsp import *
 from torch.utils.tensorboard.writer import SummaryWriter
 from utils.metrics import compute_speech2fdn_metrics
-
 from losses import *
 import warnings
+from scipy.signal import oaconvolve
+
 warnings.filterwarnings("ignore", category=UserWarning, module="torchaudio")
 
 def save_batch(step_dict, out_dir, batch_idx):
@@ -56,7 +57,9 @@ def save_batch(step_dict, out_dir, batch_idx):
 def step(model, batch, freqs, device):
     dry, wet, rir, wetspec = batch
     dry = dry.to(device)[:, :, :int(2.5*48000)]  # use only first 2.5 seconds
-    wet = wet.to(device)[:, :, :int(2.5*48000)] 
+    # wet = wet.to(device)[:, :, :int(2.5*48000)] 
+    rir_norm = rir / torch.sqrt(torch.sum(rir**2, dim=-1, keepdim=True))
+    wet = torch.tensor(oaconvolve(dry, rir_norm, mode="full", axes=-1)).to(device)[:, :, :int(2.5*48000)] 
     wetspec = wetspec.to(device)
     
     wet_fdn, rir_fdn, ext_params, z = model(wet, dry, freqs)
@@ -148,7 +151,6 @@ def train(args, dataset):
                 step_dict = step(model, batch, freqs, args.device)
                 pred = step_dict["wet_fdn"]
                 target = step_dict["wet"][:, 0, :]
-                
                 # compute losses
                 signal_loss = 0
                 for loss, weight in zip(signal_losses, weights):
