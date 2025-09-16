@@ -56,6 +56,7 @@ def save_batch(step_dict, out_dir, batch_idx):
 
 def step(model, batch, freqs, device):
     dry, wet, rir, wetspec = batch
+    rir = rir.to(device)
     dry = dry.to(device)[:, :, :int(2.5*48000)]  # use only first 2.5 seconds
     # wet = wet.to(device)[:, :, :int(2.5*48000)] 
     rir_norm = rir / torch.sqrt(torch.sum(rir**2, dim=-1, keepdim=True))
