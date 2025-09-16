@@ -149,8 +149,9 @@ def train(args, dataset):
             for batch in pbar:
                 optimizer.zero_grad()
                 step_dict = step(model, batch, freqs, args.device)
-                pred = step_dict["wet_fdn"]
-                target = step_dict["wet"][:, 0, :]
+                
+                target = step_dict["rir"][:, 0, :]
+                pred = step_dict["rir_fdn"][:, :target.shape[-1]]
                 # compute losses
                 signal_loss = 0
                 for loss, weight in zip(signal_losses, weights):
@@ -183,8 +184,8 @@ def train(args, dataset):
             for batch in dataset.valid_loader:
                 with torch.no_grad():
                     step_dict = step(model, batch, freqs, args.device)
-                    pred = step_dict["wet_fdn"]
-                    target = step_dict["wet"][:, 0, :]
+                    target = step_dict["rir"][:, 0, :]
+                    pred = step_dict["rir_fdn"][:, :target.shape[-1]]
 
                     # compute losses
                     signal_loss = 0
@@ -240,8 +241,8 @@ def train(args, dataset):
                     "rir_fdn": step_dict["rir_fdn"].cpu().numpy().squeeze(),
                     "ext_params": step_dict["ext_params"],
                 }
-                pred = step_dict["wet_fdn"]
-                target = step_dict["wet"][:, 0, :]
+                target = step_dict["rir"][:, 0, :]
+                pred = step_dict["rir_fdn"][:, :target.shape[-1]]
 
                 # compute losses
                 signal_loss = 0
