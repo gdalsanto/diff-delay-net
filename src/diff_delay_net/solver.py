@@ -153,6 +153,7 @@ def train(args, dataset):
                 
                 target = step_dict["rir"][:, 0, :]
                 pred = step_dict["rir_fdn"][:, :target.shape[-1]]
+                print(pred.device, target.device)
                 # compute losses
                 signal_loss = 0
                 for loss, weight in zip(signal_losses, weights):
